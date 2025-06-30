@@ -32,7 +32,7 @@ class ragSystem:
         for entry in vector_db:
             key = entry["input"]
             embedding = entry["embedding"]
-            distance = self.find_distance_embedding(input_embedding, embedding)
+            distance = self.find_distance_embedding(input_embedding, embedding)/ entry["weight"]  
             if distance < min_dist:
                 min_dist = distance
                 most_relevant_key = key
