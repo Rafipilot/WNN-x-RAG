@@ -25,21 +25,23 @@ class vectorizer:
             json.dump(self.cache, f)
 
     def addToVectorDB(self, input):
-        if input in self.cache:
-            return self.cache[input]
-        else:
+        for entry in self.cache:
+            if entry["input"] == input:
+                return entry["embedding"]
+            
 
-            embedding = self.get_embedding(input)
-            # Save the embedding to the cache
-            new_entry = {
-                "input": input,
-                "embedding": embedding,
-                "weight": 0.2,  # A placeholder for the iconic trainable weight
-                "numberOfRetrievals": 0  
-            }
-            self.cache.append(new_entry)
-            self.save_cache()
-            return embedding
+        print("adding to vector DB")
+        embedding = self.get_embedding(input)
+        # Save the embedding to the cache
+        new_entry = {
+            "input": input,
+            "embedding": embedding,
+            "weight": 0.2,  # A placeholder for the iconic trainable weight
+            "numberOfRetrievals": 0  
+        }
+        self.cache.append(new_entry)
+        self.save_cache()
+        return embedding
         
     def get_embedding(self, input):
  

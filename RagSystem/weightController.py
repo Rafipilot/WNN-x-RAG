@@ -4,7 +4,6 @@ import ao_core as ao
 from config import openai_key
 import ao_embeddings.binaryEmbeddings as be
 from RagSystem.Vectorizer import vectorizer
-import json
 
 class weightController:
     def __init__(self):
@@ -33,22 +32,14 @@ class weightController:
             weight = int(entry["weight"]*10)
             weight = self.convert_to_binary(weight)
 
-            print("weight:", weight)
-            print("binary embedding:", binary_embedding)
-            print("number of retrievals binary:", number_of_retrievals_binary)
-
             input_to_agent = binary_embedding + number_of_retrievals_binary + weight
 
             self.most_recent_input = input_to_agent
 
-            print("most_recent_input:", self.most_recent_input)
-
-            print("input to agent:", input_to_agent)
 
             new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent))/10
 
             entry["weight"] = new_weight
-            print(f"Updated weight for '{entry['input']}': {new_weight}")
 
             # Save the updated vector database
             vectorizer.save_cache()

@@ -2,7 +2,6 @@
 import ollama
 from RagSystem.Vectorizer import vectorizer
 from RagSystem.ragSystem import ragSystem
-from RagSystem.weightController import weightController
 from config import openai_key
 
 vec = vectorizer(openai_api_key=openai_key, cache_name="VectorDB.json")
@@ -43,7 +42,7 @@ while True:
 
     # Run a prompt using the locally installed LLaMA 3.2 model
     messages = [
-        {'role': 'system', 'content': 'You are a helpful assistant.'},
+        {'role': 'system', 'content': 'You are a helpful assistant, ensure to use the information from the vector database to answer the question.'},
         {'role': 'system', 'content': f'You have access to the following information from the vector database: {most_relevant_key}'},
     ]
 
@@ -61,11 +60,12 @@ while True:
 
     Rag_feedback = get_rag_feedback(input_text, most_relevant_key)
 
-    if "yes" in Rag_feedback['message']['content'].lower():
-        print("LLM confirmed the relevance of the information.")
-        rag.wC.train_agent("pos")
-    else:
-        print("LLM did not confirm the relevance of the information.")
-        rag.wC.train_agent("neg")
+    if most_relevant_key!= "No relevant information found.":
+        if "yes" in Rag_feedback.lower():
+            print("LLM confirmed the relevance of the information.")
+            rag.wC.train_agent("pos")
+        else:
+            print("LLM did not confirm the relevance of the information.")
+            rag.wC.train_agent("neg")
     
 

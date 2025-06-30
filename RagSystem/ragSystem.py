@@ -36,7 +36,7 @@ class ragSystem:
             if distance < min_dist:
                 min_dist = distance
                 most_relevant_key = key
-        if min_dist > 0.2:
+        if min_dist > 0.3:
             print("No relevant information found, min distance:", min_dist)
             return "No relevant information found."
         
