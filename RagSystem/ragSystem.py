@@ -7,7 +7,7 @@ from RagSystem.weightController import weightController  # to adjust weights in 
         
 class ragSystem:
     def __init__(self):
-        pass
+        self.wC = weightController()
 
     def normalize(self, embedding): 
         norm = np.linalg.norm(embedding)
@@ -48,6 +48,5 @@ class ragSystem:
         return most_relevant_key
     
     def adjust_weights(self, vector_db, vectorizer):
-        wC = weightController()
-        wC.adjust_weights(vector_db, vectorizer)
+        self.wC.adjust_weights(vector_db, vectorizer)
  

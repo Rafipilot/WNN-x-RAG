@@ -2,9 +2,11 @@
 import ollama
 from RagSystem.Vectorizer import vectorizer
 from RagSystem.ragSystem import ragSystem
+from RagSystem.weightController import weightController
 from config import openai_key
 
 vec = vectorizer(openai_api_key=openai_key, cache_name="VectorDB.json")
+rag = ragSystem()
 
 dummy_data = [
     "The company made a revenue of $1 million last year.",
@@ -16,8 +18,18 @@ dummy_data = [
 for data in dummy_data:
     vec.addToVectorDB(data)
 
-chat_history = []
+def get_rag_feedback(input_text, most_relevant_key):
+    rag_feedback_text = [{
+        'role': 'user', 
+        'content': f'Was this information "{most_relevant_key}", useful for this prompt: "{input_text}"? Respond with "yes" or "no".'
+    }]
 
+    Rag_feedback = ollama.chat(
+        model='llama3.2',
+        messages=rag_feedback_text
+    )
+
+    return Rag_feedback['message']['content']
 
 while True:
     input_text = str(input("Ask a question... "))
@@ -26,7 +38,6 @@ while True:
 
     # run a basic Rag query 
 
-    rag = ragSystem()
     most_relevant_key = rag.run_query(input_embedding, vec.cache, vec)
     print(f"Most relevant key: {most_relevant_key}")
 
@@ -36,8 +47,6 @@ while True:
         {'role': 'system', 'content': f'You have access to the following information from the vector database: {most_relevant_key}'},
     ]
 
-    for message in chat_history:
-        messages.append(message)
     
     messages.append({'role': 'user', 'content': input_text})
 
@@ -45,7 +54,18 @@ while True:
         model='llama3.2',  
         messages=messages,
     )
-    chat_history.append({'role': 'user', 'content': input_text})
-    chat_history.append({'role': 'assistant', 'content': response['message']['content']})
+    messages.append({'role': 'user', 'content': input_text})
+    messages.append({'role': 'assistant', 'content': response['message']['content']})
 
     print(response['message']['content'])
+
+    Rag_feedback = get_rag_feedback(input_text, most_relevant_key)
+
+    if "yes" in Rag_feedback['message']['content'].lower():
+        print("LLM confirmed the relevance of the information.")
+        rag.wC.train_agent("pos")
+    else:
+        print("LLM did not confirm the relevance of the information.")
+        rag.wC.train_agent("neg")
+    
+
