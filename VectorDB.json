@@ -1538,7 +1538,9 @@
             0.007301847450435162,
             -0.020547058433294296,
             -0.018065214157104492
-        ]
+        ],
+        "weight": 0.4,
+        "numberOfRetrievals": 1
     },
     {
         "input": "The weather today is sunny with a chance of rain in the evening.",
@@ -3079,7 +3081,9 @@
             -0.015313397161662579,
             0.006919386796653271,
             0.0018795146606862545
-        ]
+        ],
+        "weight": 0.0,
+        "numberOfRetrievals": 2
     },
     {
         "input": "The stock market saw a significant increase yesterday.",
@@ -4620,7 +4624,9 @@
             -0.021005233749747276,
             -0.010590926744043827,
             -0.0008720640907995403
-        ]
+        ],
+        "weight": 0.3,
+        "numberOfRetrievals": 0
     },
     {
         "input": "The new product launch was a huge success.",
@@ -6161,6 +6167,8 @@
             -0.011633320711553097,
             -0.020594561472535133,
             -0.01518523134291172
-        ]
+        ],
+        "weight": 0.4,
+        "numberOfRetrievals": 0
     }
 ]

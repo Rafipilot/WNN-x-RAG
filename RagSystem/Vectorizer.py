@@ -28,16 +28,14 @@ class vectorizer:
         if input in self.cache:
             return self.cache[input]
         else:
-            response = client.embeddings.create(
-                input=input,
-                model="text-embedding-ada-002"
-            )
-            embedding = response.data[0].embedding
+
+            embedding = self.get_embedding(input)
             # Save the embedding to the cache
             new_entry = {
                 "input": input,
                 "embedding": embedding,
-                "weight": 1  # A placeholder for the iconic trainable weight
+                "weight": 0.2,  # A placeholder for the iconic trainable weight
+                "numberOfRetrievals": 0  
             }
             self.cache.append(new_entry)
             self.save_cache()

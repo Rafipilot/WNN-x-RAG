@@ -27,7 +27,7 @@ while True:
     # run a basic Rag query 
 
     rag = ragSystem()
-    most_relevant_key = rag.run_query(input_embedding, vec.cache)
+    most_relevant_key = rag.run_query(input_embedding, vec.cache, vec)
     print(f"Most relevant key: {most_relevant_key}")
 
     # Run a prompt using the locally installed LLaMA 3.2 model
