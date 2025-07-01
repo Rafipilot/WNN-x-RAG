@@ -61,10 +61,10 @@ while True:
 
     Rag_feedback = get_rag_feedback(input_text, most_relevant_key)
 
-    if first_pass:
+    if first_pass: # If it is the first is the first pass through loop we need to adjust the weights 
         rag.wC.adjust_weights(most_relevant_key)
         first_pass = False
-        
+
     if most_relevant_key!= "No relevant information found.":
         if "yes" in Rag_feedback.lower():
             print("LLM confirmed the relevance of the information.")

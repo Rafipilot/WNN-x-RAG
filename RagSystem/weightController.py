@@ -4,6 +4,7 @@ import ao_core as ao
 from config import openai_key
 import ao_embeddings.binaryEmbeddings as be
 from RagSystem.Vectorizer import vectorizer
+import numpy as np
 
 class weightController:
     def __init__(self, vectorizer: vectorizer):
@@ -17,12 +18,34 @@ class weightController:
         self.em = be.binaryEmbeddings(openai_api_key=openai_key, numberBinaryDigits=10)
 
     def convert_to_binary(self, interger):
-        binary = format(int(interger), '04b')
-        return [int(bit) for bit in binary]
+        if interger == 0.2:
+            binary = [0,0,0,0]
+        elif interger == 0.4:
+            binary = [0,0,0,1]
+        elif interger == 0.6:
+            binary = [0,0,1,1]
+        elif interger == 0.8:
+            binary = [0,1,1,1]
+        else:
+            binary = [1,1,1,1]
+        return binary
 
     def convert_to_int(self, binary):
-        binary_str = ''.join(str(bit) for bit in binary)
-        return int(binary_str, 2)
+        try:
+            binary = binary.tolist()
+        except Exception as e:
+            pass
+        if binary == [0,0,0,0]:
+            integer = 0.2
+        elif binary == [0,0,0,1]:
+            integer = 0.4
+        elif binary == [0,0,1,1]:
+            integer = 0.6
+        elif binary == [0,1,1,1]:
+            integer = 0.8
+        else:
+            integer  = 1
+        return integer
 
     def adjust_weights(self, mostReleventKey):
         for entry in self.vector_db:
@@ -32,7 +55,7 @@ class weightController:
             number_of_retrievals = entry["numberOfRetrievals"]
             number_of_retrievals_binary = self.convert_to_binary(number_of_retrievals)
 
-            weight = int(entry["weight"]*10)
+            weight = int(entry["weight"])
             weight = self.convert_to_binary(weight)
 
             input_to_agent = binary_embedding + number_of_retrievals_binary + weight
@@ -40,7 +63,7 @@ class weightController:
             if mostReleventKey == entry["input"]:
                 self.most_recent_input = input_to_agent # entry that has actually been retrieved
 
-            new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent)) /10
+            new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent))
 
             entry["weight"] = new_weight
 
@@ -49,10 +72,10 @@ class weightController:
             
     def train_agent(self, type, most_relevant_key):
 
-        weight = self.most_recent_input[14:18]
-        weight = sum(weight)
+        weighted = self.most_recent_input[14:18]
+        weight = sum(weighted)
         label = [0,0,0,0]
-        print("old weight: ", weight)
+        print("old weight: ", self.convert_to_int(weighted))
 
         if type == "pos":
             for i in range(min(weight+1, 4)):
@@ -67,6 +90,6 @@ class weightController:
             self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
 
         
-        print("trained : ", sum(label))
+        print("trained : ", self.convert_to_int(label))
 
         self.adjust_weights(most_relevant_key)  # Adjust weights after training the agent

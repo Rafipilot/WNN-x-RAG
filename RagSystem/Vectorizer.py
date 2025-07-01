@@ -36,7 +36,7 @@ class vectorizer:
         new_entry = {
             "input": input,
             "embedding": embedding,
-            "weight": 0.7,  # A placeholder for the iconic trainable weight
+            "weight": 0.8,  # A placeholder for the iconic trainable weight
             "numberOfRetrievals": 0,
             "uniqueID": len(self.cache) + 1  # Unique identifier for the entry
         }
