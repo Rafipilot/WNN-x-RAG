@@ -38,8 +38,7 @@ class weightController:
             input_to_agent = binary_embedding + number_of_retrievals_binary + weight
 
             if mostReleventKey == entry["input"]:
-                self.most_recent_input = input_to_agent # somehow change to entry that has actually been retrieved
-                print("found most relevent key in adjust weights")
+                self.most_recent_input = input_to_agent # entry that has actually been retrieved
 
             new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent)) /10
 
@@ -47,8 +46,8 @@ class weightController:
 
             # Save the updated vector database
             self.vectorizer.save_cache()
-            #
-    def train_agent(self, type):
+            
+    def train_agent(self, type, most_relevant_key):
 
         weight = self.most_recent_input[14:18]
         weight = sum(weight)
@@ -58,12 +57,16 @@ class weightController:
         if type == "pos":
             for i in range(min(weight+1, 4)):
                 label[i] = 1
+            label.reverse()
 
             self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label) # TODO use incremental learning
         else:
             for i in range(max(weight-1, 1)):
                 label[i] = 1
+            label.reverse()
             self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
 
         
         print("trained : ", sum(label))
+
+        self.adjust_weights(most_relevant_key)  # Adjust weights after training the agent

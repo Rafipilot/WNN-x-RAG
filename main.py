@@ -32,6 +32,9 @@ def get_rag_feedback(input_text, most_relevant_key):
 messages = [
     {'role': 'system', 'content': 'You are a helpful assistant, ensure to use the information from the vector database to answer the question.'},
 ]
+
+first_pass = True
+
 while True:
     input_text = str(input("Ask a question... "))
 
@@ -54,15 +57,19 @@ while True:
 
     messages.append({'role': 'assistant', 'content': response['message']['content']})
 
-    print(response['message']['content'])
+    print("Response", response['message']['content'])
 
     Rag_feedback = get_rag_feedback(input_text, most_relevant_key)
 
+    if first_pass:
+        rag.wC.adjust_weights(most_relevant_key)
+        first_pass = False
+        
     if most_relevant_key!= "No relevant information found.":
         if "yes" in Rag_feedback.lower():
             print("LLM confirmed the relevance of the information.")
-            rag.wC.train_agent("pos") # Training the agent with [1,1,1,1]
+            rag.wC.train_agent("pos", most_relevant_key) # Training the agent with [1,1,1,1]
         else:
             print("LLM did not confirm the relevance of the information.")
-            rag.wC.train_agent("neg") # Training the agent with [0,0,0,0]
+            rag.wC.train_agent("neg", most_relevant_key) # Training the agent with [0,0,0,0]
     

@@ -40,13 +40,14 @@ class ragSystem:
                 most_relevant_key = key
         if min_dist > 0.3:
             print("No relevant information found, min distance:", min_dist)
+            self.wC.adjust_weights(most_relevant_key)
             return "No relevant information found."
         
         for entry in self.vector_db:
             if entry["input"] == most_relevant_key:
                 entry["numberOfRetrievals"] += 1
 
-        self.wC.adjust_weights(most_relevant_key)
+
         return most_relevant_key
     
         
