@@ -5,7 +5,7 @@ from RagSystem.ragSystem import ragSystem
 from config import openai_key
 
 vec = vectorizer(openai_api_key=openai_key, cache_name="VectorDB.json")
-rag = ragSystem()
+rag = ragSystem(vec)
 
 dummy_data = [
     "The company made a revenue of $1 million last year.",
@@ -29,7 +29,9 @@ def get_rag_feedback(input_text, most_relevant_key):
     )
 
     return Rag_feedback['message']['content']
-
+messages = [
+    {'role': 'system', 'content': 'You are a helpful assistant, ensure to use the information from the vector database to answer the question.'},
+]
 while True:
     input_text = str(input("Ask a question... "))
 
@@ -37,23 +39,19 @@ while True:
 
     # run a basic Rag query 
 
-    most_relevant_key = rag.run_query(input_embedding, vec.cache, vec)
+    most_relevant_key = rag.run_query(input_embedding)
     print(f"Most relevant key: {most_relevant_key}")
 
     # Run a prompt using the locally installed LLaMA 3.2 model
-    messages = [
-        {'role': 'system', 'content': 'You are a helpful assistant, ensure to use the information from the vector database to answer the question.'},
-        {'role': 'system', 'content': f'You have access to the following information from the vector database: {most_relevant_key}'},
-    ]
-
     
     messages.append({'role': 'user', 'content': input_text})
+    messages.append({'role': 'system', 'content': f'You have access to the following information from the vector database: {most_relevant_key}'})
 
     response = ollama.chat(
         model='llama3.2',  
         messages=messages,
     )
-    messages.append({'role': 'user', 'content': input_text})
+
     messages.append({'role': 'assistant', 'content': response['message']['content']})
 
     print(response['message']['content'])
@@ -63,9 +61,8 @@ while True:
     if most_relevant_key!= "No relevant information found.":
         if "yes" in Rag_feedback.lower():
             print("LLM confirmed the relevance of the information.")
-            rag.wC.train_agent("pos")
+            rag.wC.train_agent("pos") # Training the agent with [1,1,1,1]
         else:
             print("LLM did not confirm the relevance of the information.")
-            rag.wC.train_agent("neg")
+            rag.wC.train_agent("neg") # Training the agent with [0,0,0,0]
     
-
