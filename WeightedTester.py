@@ -101,7 +101,7 @@ def evaluate_rag(test_cases, epochs):
                     if "yes" in override:
                         correct +=1
                         tag = "pos"
-                rag.wC.train_agent(tag, key)
+                rag.wC.train_agent(tag, key, rag.ActThresh)
 
             else:
                 print("LLM did not retrieve any info from Vector DB for this prompt: ", prompt)

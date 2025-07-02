@@ -3,12 +3,14 @@
 from sklearn.metrics.pairwise import cosine_similarity  # to calculate distances
 import numpy as np
 from WeightedRagSystem.weightController import weightController
+from WeightedRagSystem.activeThreshold import activeThreshold
         
 class ragSystem:
     def __init__(self, vectorizer):
         self.wC = weightController(vectorizer)
         self.vectorizer = vectorizer
         self.vector_db = vectorizer.cache
+        self.ActThresh = activeThreshold()
 
     def normalize(self, embedding): 
         norm = np.linalg.norm(embedding)
@@ -30,15 +32,17 @@ class ragSystem:
         
         # This will loop through the vector database at every datapoint and use a cosine similarity to find the most relevent information.
         min_dist = float("inf")  # Initialize to a large value
-        most_relevant_key = None
+        most_relevent_entry = None
         for entry in self.vector_db:
             key = entry["input"]
             embedding = entry["embedding"]
             distance = self.find_distance_embedding(input_embedding, embedding)/ entry["weight"]  
             if distance < min_dist:
                 min_dist = distance
-                most_relevant_key = key
-        if min_dist > 0.25:   # TODO active threshold
+                most_relevent_entry = entry
+        threshold = self.ActThresh.adjustThreshold(most_relevent_entry)
+        most_relevant_key = most_relevent_entry["input"]
+        if min_dist > threshold:   # TODO active threshold
             print("No relevant information found, min distance:", min_dist)
             self.wC.adjust_weights(most_relevant_key)
             return "No relevant information found.", min_dist

@@ -3,7 +3,7 @@
 import ao_core as ao
 from config import openai_key
 import ao_embeddings.binaryEmbeddings as be
-from RagSystem.Vectorizer import vectorizer
+
 import numpy as np
 
 class weightController:
@@ -14,6 +14,7 @@ class weightController:
         self.Arch = ao.Arch(arch_i=[10,4,4, 4], arch_z=[4]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
         self.Agent = ao.Agent(Arch=self.Arch)
         self.em = be.binaryEmbeddings(openai_api_key=openai_key, numberBinaryDigits=10)
+
 
     def convert_to_binary(self, interger):
         if interger == 0.2:
@@ -89,7 +90,7 @@ class weightController:
             self.vectorizer.save_cache()
 
             
-    def train_agent(self, type, most_relevant_key):
+    def train_agent(self, type, most_relevant_key, actThresh):
 
         weighted = self.most_recent_input[18:22]
         print("from train: ",weighted)
@@ -109,8 +110,10 @@ class weightController:
             self.vectorizer.incrementNumberFailures(most_relevant_key)
 
         self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
+        actThresh.trainAgent(type)
 
         
         print("trained : ", self.convert_to_int(label))
 
         self.adjust_weights(most_relevant_key)  # Adjust weights after training the agent
+        
