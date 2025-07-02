@@ -7,11 +7,11 @@ from RagSystem.Vectorizer import vectorizer
 import numpy as np
 
 class weightController:
-    def __init__(self, vectorizer: vectorizer):
+    def __init__(self, vectorizer):
 
         self.vectorizer = vectorizer
         self.vector_db = vectorizer.cache
-        self.Arch = ao.Arch(arch_i=[10,4,4], arch_z=[4]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
+        self.Arch = ao.Arch(arch_i=[10,4,4, 4], arch_z=[4]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
         self.Agent = ao.Agent(Arch=self.Arch)
         self.em = be.binaryEmbeddings(openai_api_key=openai_key, numberBinaryDigits=10)
 
@@ -27,6 +27,21 @@ class weightController:
         else:
             binary = [1,1,1,1]
         return binary
+    
+    def convert_int_to_binary(self, integer):
+        if integer == 0:
+            binary = [0, 0, 0, 0]
+        elif integer == 1:
+            binary = [0, 0, 0, 1]
+        elif integer == 2:
+            binary = [0, 0, 1, 1]
+        elif integer == 3:
+            binary = [0, 1, 1, 1]
+        else:
+            binary = [1, 1, 1, 1]
+        return binary
+
+    
 
     def convert_to_int(self, binary):
         try:
@@ -50,13 +65,18 @@ class weightController:
             
             binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
 
+            ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
+
             number_of_retrievals = entry["numberOfRetrievals"]
             number_of_retrievals_binary = self.convert_to_binary(number_of_retrievals)
 
-            weight = int(entry["weight"])
+            weight = entry["weight"]
             weight = self.convert_to_binary(weight)
 
-            input_to_agent = binary_embedding + number_of_retrievals_binary + weight
+            numFailures = entry["numberFailures"]
+            numFailuresBinary = self.convert_int_to_binary(numFailures)
+
+            input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight
 
             if mostReleventKey == entry["input"]:
                 self.most_recent_input = input_to_agent # entry that has actually been retrieved
@@ -67,10 +87,12 @@ class weightController:
 
             # Save the updated vector database
             self.vectorizer.save_cache()
+
             
     def train_agent(self, type, most_relevant_key):
 
-        weighted = self.most_recent_input[14:18]
+        weighted = self.most_recent_input[18:22]
+        print("from train: ",weighted)
         weight = sum(weighted)
         label = [0,0,0,0]
         print("old weight: ", self.convert_to_int(weighted))
@@ -84,6 +106,8 @@ class weightController:
             for i in range(max(weight-1, 1)):
                 label[i] = 1
             label.reverse()
+            self.vectorizer.incrementNumberFailures(most_relevant_key)
+
         self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
 
         

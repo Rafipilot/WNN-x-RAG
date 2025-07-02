@@ -38,11 +38,19 @@ class vectorizer:
             "embedding": embedding,
             "weight": 0.8,  # A placeholder for the iconic trainable weight
             "numberOfRetrievals": 0,
+            "numberFailures": 0,
             "uniqueID": len(self.cache) + 1  # Unique identifier for the entry
         }
         self.cache.append(new_entry)
         self.save_cache()
         return embedding
+    
+    def incrementNumberFailures(self, input):
+        for i,entry in enumerate(self.cache):
+            if entry == input:
+                self.cache[i]["numberFailures"] +=1
+                break
+        self.save_cache()
         
     def get_embedding(self, input):
  

@@ -59,17 +59,4 @@ while True:
 
     print("Response", response['message']['content'])
 
-    Rag_feedback = get_rag_feedback(input_text, most_relevant_key)
 
-    if first_pass: # If it is the first is the first pass through loop we need to adjust the weights 
-        rag.wC.adjust_weights(most_relevant_key)
-        first_pass = False
-
-    if most_relevant_key!= "No relevant information found.":
-        if "yes" in Rag_feedback.lower():
-            print("LLM confirmed the relevance of the information.")
-            rag.wC.train_agent("pos", most_relevant_key) # Training the agent with [1,1,1,1]
-        else:
-            print("LLM did not confirm the relevance of the information.")
-            rag.wC.train_agent("neg", most_relevant_key) # Training the agent with [0,0,0,0]
-    

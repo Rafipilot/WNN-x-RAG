@@ -32,7 +32,6 @@ data = [
     "The speed of sound is about 343 meters per second in air.",
     "The moon influences Earth's tides.",
     "The British Pound is symbolized as £.",
-    "Apple Inc. reported a revenue of $1.2 million last year.",
     "The weather tomorrow will be cloudy with occasional showers.",
     "The stock market experienced a slight drop today.",
     "The recent product launch underperformed due to poor marketing."
@@ -42,39 +41,40 @@ for snippet in data:
     vec.addToVectorDB(snippet)
 
 test_cases = [
-    ("Where is the Eiffel Tower?", "Eiffel Tower is located in Paris"),
-    ("Who created Python?", "Python is a high‑level programming language created by Guido van Rossum"),
-    ("How long is the Great Wall of China?", "Great Wall of China is over 13,000 miles long"),
-    ("What’s the boiling point of water?", "Water boils at 100°C"),
-    ("What’s the capital city of Japan?", "capital of Japan is Tokyo"),
-    ("Who invented the light bulb?", "inventor of the light bulb was Thomas Edison"),
+    # ("Where is the Eiffel Tower?", "Eiffel Tower is located in Paris"),
+    # ("Who created Python?", "Python is a high‑level programming language created by Guido van Rossum"),
+    # ("How long is the Great Wall of China?", "Great Wall of China is over 13,000 miles long"),
+    # ("What’s the boiling point of water?", "Water boils at 100°C"),
+    # ("What’s the capital city of Japan?", "capital of Japan is Tokyo"),
+    # ("Who invented the light bulb?", "inventor of the light bulb was Thomas Edison"),
     ("Tell me about last year’s revenue.", "revenue of $1 million last year"),
-    ("Will it rain today?", "sunny with a chance of rain in the evening"),
+    # ("Will it rain today?", "sunny with a chance of rain in the evening"),
     ("Did stocks go up yesterday?", "significant increase yesterday"),
-    ("Was the product launch successful?", "new product launch was a huge success"),
-    ### Totally inrellevent info that is not in DB -should out put no info found
-    ("What is my name", ""),
-    ("What is the capital of the U.k", ""),
+    #("Was the product launch successful?", "new product launch was a huge success"),
+    ### Totally inrellevent info that is not in DB -should output no info found
+    ("What is my name", ""), 
+    ("What is the capital of the United kingdom", ""), 
     ("What is AO Labs", ""),
+    ("Definition of Revenue", ""),
     ("How to make an LLM", ""),
 ]
 
 def get_rag_feedback(input_text, most_relevant_key):
     msg = [{
         'role': 'user',
-        'content': f'Was this information "{most_relevant_key}" mostly useful for answering: "{input_text}"? Respond with "yes" or "no".'
+        'content': f'Was this information "{most_relevant_key}" mostly generally useful for answering : "{input_text}"? Respond with "yes" or "no".'
     }]
     reply = ollama.chat(model='llama3.2', messages=msg)
     return reply['message']['content'].strip().lower()
 
-def evaluate_rag(test_cases, epochs=2):
+def evaluate_rag(test_cases, epochs):
     stats = []
     for epoch in range(1, epochs+1):
         correct = 0
         first_pass = True
         for prompt, expected in test_cases:
             emb = vec.get_embedding(prompt)
-            key = rag.run_query(emb)
+            key, min_dist = rag.run_query(emb)
 
 
             if first_pass:
@@ -94,13 +94,13 @@ def evaluate_rag(test_cases, epochs=2):
                 if llm_agrees:
                     correct += 1
                     tag = "pos"
+                    print("Retrival:prompt: ", prompt, " retrived from db: ", key, "llm output: ", fb, "min dist: ", min_dist )
                 else:
-                    print("retrieval incorrect, prompt: ", prompt, " retrived from db: ", key, "llm output: ", fb)
+                    print("retrieval incorrect, prompt: ", prompt, " retrived from db: ", key, "llm output: ", fb, "min dist: ", min_dist)
                     override = input("Override the llm feedback? ") # this llm is espescially stupid and makes lots of mistakes... consider moving back to openai
                     if "yes" in override:
                         correct +=1
                         tag = "pos"
-
                 rag.wC.train_agent(tag, key)
 
             else:
@@ -118,5 +118,5 @@ def evaluate_rag(test_cases, epochs=2):
 
 # Run the evaluation
 print("=== Starting RAG evaluation ===")
-results = evaluate_rag(test_cases, epochs=3)
+results = evaluate_rag(test_cases, epochs=10)
 print("=== Done ===")

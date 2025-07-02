@@ -38,17 +38,17 @@ class ragSystem:
             if distance < min_dist:
                 min_dist = distance
                 most_relevant_key = key
-        if min_dist > 0.3:
+        if min_dist > 0.25:   # TODO active threshold
             print("No relevant information found, min distance:", min_dist)
             self.wC.adjust_weights(most_relevant_key)
-            return "No relevant information found."
+            return "No relevant information found.", min_dist
         
         for entry in self.vector_db:
             if entry["input"] == most_relevant_key:
                 entry["numberOfRetrievals"] += 1
 
 
-        return most_relevant_key
+        return most_relevant_key, min_dist
     
         
  
