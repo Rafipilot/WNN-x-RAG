@@ -22,7 +22,20 @@ data = [
     "The company made a revenue of $1 million last year.",
     "The weather today is sunny with a chance of rain in the evening.",
     "The stock market saw a significant increase yesterday.",
-    "The new product launch was a huge success."
+    "The new product launch was a huge success.",
+    "The Eiffel Tower was completed in 1889.",
+    "The Empire State Building is located in New York City.",
+    "Python is often used for data science and machine learning.",
+    "Guido van Rossum named Python after the British comedy group Monty Python.",
+    "Thomas Edison also founded General Electric.",
+    "Tokyo is one of the most densely populated cities in the world.",
+    "The speed of sound is about 343 meters per second in air.",
+    "The moon influences Earth's tides.",
+    "The British Pound is symbolized as £.",
+    "Apple Inc. reported a revenue of $1.2 million last year.",
+    "The weather tomorrow will be cloudy with occasional showers.",
+    "The stock market experienced a slight drop today.",
+    "The recent product launch underperformed due to poor marketing."
 ]
 
 for snippet in data:
@@ -39,12 +52,17 @@ test_cases = [
     ("Will it rain today?", "sunny with a chance of rain in the evening"),
     ("Did stocks go up yesterday?", "significant increase yesterday"),
     ("Was the product launch successful?", "new product launch was a huge success"),
+    ### Totally inrellevent info that is not in DB -should out put no info found
+    ("What is my name", ""),
+    ("What is the capital of the U.k", ""),
+    ("What is AO Labs", ""),
+    ("How to make an LLM", ""),
 ]
 
 def get_rag_feedback(input_text, most_relevant_key):
     msg = [{
         'role': 'user',
-        'content': f'Was this information "{most_relevant_key}" useful for answering: "{input_text}"? Respond with "yes" or "no".'
+        'content': f'Was this information "{most_relevant_key}" mostly useful for answering: "{input_text}"? Respond with "yes" or "no".'
     }]
     reply = ollama.chat(model='llama3.2', messages=msg)
     return reply['message']['content'].strip().lower()
@@ -58,7 +76,6 @@ def evaluate_rag(test_cases, epochs=2):
             emb = vec.get_embedding(prompt)
             key = rag.run_query(emb)
 
-            is_hit = expected.lower() in key.lower()
 
             if first_pass:
                 rag.wC.adjust_weights(key)
@@ -72,21 +89,27 @@ def evaluate_rag(test_cases, epochs=2):
                     llm_agrees = True
                 
                 # train weights based on LLM feedback
+                
+                tag = "neg"
                 if llm_agrees:
-                    tag = "pos" 
+                    correct += 1
+                    tag = "pos"
                 else:
-                    tag = "neg"
+                    print("retrieval incorrect, prompt: ", prompt, " retrived from db: ", key, "llm output: ", fb)
+                    override = input("Override the llm feedback? ") # this llm is espescially stupid and makes lots of mistakes... consider moving back to openai
+                    if "yes" in override:
+                        correct +=1
+                        tag = "pos"
+
                 rag.wC.train_agent(tag, key)
+
             else:
-                print("no info found")
-            
-            if llm_agrees:
-                correct += 1
-            else:
-                print("retrieval incorrect, prompt: ", prompt, " retrived from db: ", key, "llm output: ", fb)
-                override = input("Override the llm feedback? ") # this llm is espescially stupid and makes lots of mistakes... consider moving back to openai
+                print("LLM did not retrieve any info from Vector DB for this prompt: ", prompt)
+                override = input("overide: ")
                 if "yes" in override:
-                    correct +=1
+                    pass
+                else:
+                    correct += 1 # Rag correctly did not retrieve any data
 
         accuracy = correct / len(test_cases) * 100
         stats.append((epoch, accuracy))
