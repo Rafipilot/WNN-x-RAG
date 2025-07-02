@@ -11,10 +11,8 @@ class weightController:
 
         self.vectorizer = vectorizer
         self.vector_db = vectorizer.cache
-        self.Arch = ao.Arch(arch_i=[10,4,4], arch_z=[1,1,1,1]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifier
-
+        self.Arch = ao.Arch(arch_i=[10,4,4], arch_z=[4]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
         self.Agent = ao.Agent(Arch=self.Arch)
-
         self.em = be.binaryEmbeddings(openai_api_key=openai_key, numberBinaryDigits=10)
 
     def convert_to_binary(self, interger):
@@ -82,12 +80,11 @@ class weightController:
                 label[i] = 1
             label.reverse()
 
-            self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label) # TODO use incremental learning
         else:
             for i in range(max(weight-1, 1)):
                 label[i] = 1
             label.reverse()
-            self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
+        self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
 
         
         print("trained : ", self.convert_to_int(label))

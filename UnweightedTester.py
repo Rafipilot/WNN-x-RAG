@@ -1,7 +1,7 @@
 
 import ollama
-from RagSystem.Vectorizer import vectorizer
-from RagSystem.ragSystem import ragSystem
+from WeightedRagSystem.Vectorizer import vectorizer
+from WeightedRagSystem import ragSystem
 from config import openai_key
 
 vec = vectorizer(openai_api_key=openai_key, cache_name="VectorDB.json")

@@ -18,24 +18,31 @@ class vectorizer:
             with open(self.cache_name, "r") as f:
                 self.cache =  json.load(f)
         else:
-            self.cache = {}
+            self.cache = []
 
     def save_cache(self):
         with open(self.cache_name, "w") as f:
             json.dump(self.cache, f)
 
     def addToVectorDB(self, input):
-        if input in self.cache:
-            return self.cache[input]
-        else:
-            response = client.embeddings.create(
-                input=input,
-                model="text-embedding-ada-002"
-            )
-            embedding = response.data[0].embedding
-            self.cache[input] = embedding
-            self.save_cache()
-            return embedding
+        for entry in self.cache:
+            if entry["input"] == input:
+                return entry["embedding"]
+            
+
+        print("adding to vector DB")
+        embedding = self.get_embedding(input)
+        # Save the embedding to the cache
+        new_entry = {
+            "input": input,
+            "embedding": embedding,
+            "weight": 0.8,  # A placeholder for the iconic trainable weight
+            "numberOfRetrievals": 0,
+            "uniqueID": len(self.cache) + 1  # Unique identifier for the entry
+        }
+        self.cache.append(new_entry)
+        self.save_cache()
+        return embedding
         
     def get_embedding(self, input):
  
