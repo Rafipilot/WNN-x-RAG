@@ -47,8 +47,9 @@ class vectorizer:
     
     def incrementNumberFailures(self, input):
         for i,entry in enumerate(self.cache):
-            if entry == input:
-                self.cache[i]["numberFailures"] +=1
+            if entry["input"] == input:
+                self.cache[i]["numberFailures"] += 1
+                print("Incrementing num faliures")
                 break
         self.save_cache()
         

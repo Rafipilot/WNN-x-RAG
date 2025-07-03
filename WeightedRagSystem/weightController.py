@@ -93,11 +93,8 @@ class weightController:
     def train_agent(self, type, most_relevant_key, actThresh):
 
         weighted = self.most_recent_input[18:22]
-        print("from train: ",weighted)
         weight = sum(weighted)
         label = [0,0,0,0]
-        print("old weight: ", self.convert_to_int(weighted))
-
         if type == "pos":
             for i in range(min(weight+1, 4)):
                 label[i] = 1
@@ -111,9 +108,6 @@ class weightController:
 
         self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
         actThresh.trainAgent(type)
-
-        
-        print("trained : ", self.convert_to_int(label))
 
         self.adjust_weights(most_relevant_key)  # Adjust weights after training the agent
         

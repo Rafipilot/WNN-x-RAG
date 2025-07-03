@@ -45,8 +45,8 @@ test_cases = [
     # ("Who created Python?", "Python is a high‑level programming language created by Guido van Rossum"),
     # ("How long is the Great Wall of China?", "Great Wall of China is over 13,000 miles long"),
     # ("What’s the boiling point of water?", "Water boils at 100°C"),
-    # ("What’s the capital city of Japan?", "capital of Japan is Tokyo"),
-    # ("Who invented the light bulb?", "inventor of the light bulb was Thomas Edison"),
+    ("What’s the capital city of Japan?", "capital of Japan is Tokyo"),
+    ("Who invented the light bulb?", "inventor of the light bulb was Thomas Edison"),
     ("Tell me about last year’s revenue.", "revenue of $1 million last year"),
     # ("Will it rain today?", "sunny with a chance of rain in the evening"),
     ("Did stocks go up yesterday?", "significant increase yesterday"),
@@ -97,19 +97,19 @@ def evaluate_rag(test_cases, epochs):
                     print("Retrival:prompt: ", prompt, " retrived from db: ", key, "llm output: ", fb, "min dist: ", min_dist )
                 else:
                     print("retrieval incorrect, prompt: ", prompt, " retrived from db: ", key, "llm output: ", fb, "min dist: ", min_dist)
-                    override = input("Override the llm feedback? ") # this llm is espescially stupid and makes lots of mistakes... consider moving back to openai
-                    if "yes" in override:
-                        correct +=1
-                        tag = "pos"
+                    # override = input("Override the llm feedback? ") # this llm is espescially stupid and makes lots of mistakes... consider moving back to openai
+                    # # if "yes" in override:
+                    # #     correct +=1
+                    # #     tag = "pos"
                 rag.wC.train_agent(tag, key, rag.ActThresh)
 
             else:
                 print("LLM did not retrieve any info from Vector DB for this prompt: ", prompt)
-                override = input("overide: ")
-                if "yes" in override:
-                    pass
-                else:
-                    correct += 1 # Rag correctly did not retrieve any data
+                # override = input("overide: ")
+                # if "yes" in override:
+                #     pass
+                # else:
+                correct += 1 # Rag correctly did not retrieve any data
 
         accuracy = correct / len(test_cases) * 100
         stats.append((epoch, accuracy))
@@ -118,5 +118,5 @@ def evaluate_rag(test_cases, epochs):
 
 # Run the evaluation
 print("=== Starting RAG evaluation ===")
-results = evaluate_rag(test_cases, epochs=10)
+results = evaluate_rag(test_cases, epochs=20)
 print("=== Done ===")

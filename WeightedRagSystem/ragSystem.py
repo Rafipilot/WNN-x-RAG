@@ -40,7 +40,8 @@ class ragSystem:
             if distance < min_dist:
                 min_dist = distance
                 most_relevent_entry = entry
-        threshold = self.ActThresh.adjustThreshold(most_relevent_entry)
+        threshold = self.ActThresh.adjustThreshold(most_relevent_entry, input_embedding)
+        print("Current threshold: ", threshold)
         most_relevant_key = most_relevent_entry["input"]
         if min_dist > threshold:   # TODO active threshold
             print("No relevant information found, min distance:", min_dist)
