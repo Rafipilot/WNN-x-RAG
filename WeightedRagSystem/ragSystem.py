@@ -42,9 +42,10 @@ class ragSystem:
                 most_relevent_entry = entry
         threshold = self.ActThresh.adjustThreshold(most_relevent_entry, input_embedding)
         print("Current threshold: ", threshold)
+        print("min dist: ", min_dist)
         most_relevant_key = most_relevent_entry["input"]
         if min_dist > threshold:   # TODO active threshold
-            print("No relevant information found, min distance:", min_dist)
+            print("No relevant information found")
             self.wC.adjust_weights(most_relevant_key)
             return "No relevant information found.", min_dist
         

@@ -81,16 +81,17 @@ def evaluate_rag(test_cases, epochs):
                 rag.wC.adjust_weights(key)
                 first_pass = False
 
-            # if key != "No relevant information found.":
-            #     fb = get_rag_feedback(prompt, key)
             if expected in key:
                 correct +=1
                 type = "pos"
             else:
                 print("error, expected: ", expected, "recived: ", key)
                 type = "neg"
-
-            rag.wC.train_agent(type, key, rag.ActThresh)
+            if "No relevant information found" in key:
+                Noresponse = True
+            else:
+                Noresponse = False
+            rag.wC.train_agent(type, Noresponse, key, rag.ActThresh)
             
 
         accuracy = correct / len(test_cases) * 100

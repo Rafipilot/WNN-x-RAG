@@ -58,24 +58,29 @@ class activeThreshold:
 
         input_to_agent = DB_embedding_binary+userInputEmbeddingBinary+ID
         output = self.Agent.next_state(input_to_agent)
-        self.Agent.reset_state()
         self.threshold = self.convertBinaryToThreshold(output)
 
         self.previousInput= input_to_agent
 
         return self.threshold
 
-    def trainAgent(self, type):
+    def trainAgent(self, type, noResponse):
         if type == "pos":
-            target = self.threshold -0.05
+            target = self.threshold
+            print("Stablizing threshold")
+        elif type == "neg" and noResponse == False:
             print("Decreasing threshold")
-        else:
+            target = self.threshold - 0.05
+        elif type == "neg" and noResponse == True:
+            target = self.threshold + 0.05  
             print("Increasing threshold")
-            target = self.threshold + 0.05
+        
+        else:
+            Warning("ERROR!")
         label = self.convertThresholdToBinary(target)
 
         self.Agent.next_state(self.previousInput, label)
-        self.Agent.reset_state()
+
 
 
 
