@@ -6,7 +6,7 @@ import json
 
 
 class vectorizer:
-    def __init__(self, openai_api_key, cache_name="cache.json"):
+    def __init__(self, openai_api_key, cache_name="VectorDB.json"):
         openai.api_key = openai_api_key
         global client 
         client = OpenAI(api_key = openai_api_key,)
@@ -21,8 +21,11 @@ class vectorizer:
             self.cache = []
 
     def save_cache(self):
-        with open(self.cache_name, "w") as f:
-            json.dump(self.cache, f)
+        try:
+            with open(self.cache_name, "w") as f:
+                json.dump(self.cache, f)
+        except Exception as e:
+            print("error: ", e)
 
     def addToVectorDB(self, input):
         for entry in self.cache:

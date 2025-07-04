@@ -91,7 +91,7 @@ def evaluate_rag(test_cases, epochs):
                 Noresponse = True
             else:
                 Noresponse = False
-            rag.wC.train_agent(type, Noresponse, key, rag.ActThresh)
+            rag.wC.train_agent(type, Noresponse, key, rag.ActThresh, min_dist)
             
 
         accuracy = correct / len(test_cases) * 100

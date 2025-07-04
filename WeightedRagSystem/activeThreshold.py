@@ -58,29 +58,46 @@ class activeThreshold:
 
         input_to_agent = DB_embedding_binary+userInputEmbeddingBinary+ID
         output = self.Agent.next_state(input_to_agent)
+        self.Agent.reset_state()
         self.threshold = self.convertBinaryToThreshold(output)
 
         self.previousInput= input_to_agent
 
         return self.threshold
 
-    def trainAgent(self, type, noResponse):
+    def trainAgent(self, type, noResponse, min_dist):
+        delta = abs(self.threshold-min_dist)
+        target_delta = delta/2
+        possible_values = [0.15, 0.20, 0.25, 0.30, 0.35]
+
         if type == "pos":
-            target = self.threshold
-            print("Stablizing threshold")
+            # Try to refine the threshold closer to the actual min_dist
+            target = (self.threshold + min_dist) / 2
+            print("Refining threshold (positive feedback)")
+
         elif type == "neg" and noResponse == False:
             print("Decreasing threshold")
-            target = self.threshold - 0.05
+            target = self.threshold - target_delta
         elif type == "neg" and noResponse == True:
-            target = self.threshold + 0.05  
+            target = self.threshold + target_delta
             print("Increasing threshold")
         
         else:
-            Warning("ERROR!")
+            raise ValueError("ERROR!")
+
+        # get threshold to one of the possible values
+        closest = None
+        closest_dist = float("inf")
+        for item in possible_values:
+            delta = abs(self.threshold - item)
+            if delta < closest_dist:
+                closest_dist = delta
+                closest = item
+        self.threshold = closest
         label = self.convertThresholdToBinary(target)
 
         self.Agent.next_state(self.previousInput, label)
-
+        self.Agent.reset_state()
 
 
 

@@ -91,7 +91,7 @@ class weightController:
             self.vectorizer.save_cache()
 
             
-    def train_agent(self, type, noResponse, most_relevant_key, actThresh):
+    def train_agent(self, type, noResponse, most_relevant_key, actThresh, min_dist):
 
         weighted = self.most_recent_input[18:22]
         weight = sum(weighted)
@@ -109,7 +109,7 @@ class weightController:
 
         self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
         self.Agent.reset_state()
-        actThresh.trainAgent(type, noResponse)
+        actThresh.trainAgent(type, noResponse, min_dist)
 
         self.adjust_weights(most_relevant_key)  # Adjust weights after training the agent
         
