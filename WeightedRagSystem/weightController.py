@@ -83,6 +83,7 @@ class weightController:
                 self.most_recent_input = input_to_agent # entry that has actually been retrieved
 
             new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent))
+            self.Agent.reset_state()
 
             entry["weight"] = new_weight
 
@@ -107,6 +108,7 @@ class weightController:
             self.vectorizer.incrementNumberFailures(most_relevant_key)
 
         self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
+        self.Agent.reset_state()
         actThresh.trainAgent(type)
 
         self.adjust_weights(most_relevant_key)  # Adjust weights after training the agent

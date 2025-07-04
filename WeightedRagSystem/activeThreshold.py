@@ -28,8 +28,12 @@ class activeThreshold:
             binary = [1,1,1,1]
         return binary
     
-    def convertBinaryToThreshold(self, binary):
-        binary = binary.tolist()
+    def convertBinaryToThreshold(self, inb):
+        inb= inb.tolist()
+        binary = [0,0,0,0]
+        for i in range(sum(inb)):
+            binary[i] = 1
+        binary.reverse()
         if binary == [0, 0, 0, 0]:
             threshold = 0.15
         elif binary == [0, 0, 0, 1]:
@@ -54,6 +58,7 @@ class activeThreshold:
 
         input_to_agent = DB_embedding_binary+userInputEmbeddingBinary+ID
         output = self.Agent.next_state(input_to_agent)
+        self.Agent.reset_state()
         self.threshold = self.convertBinaryToThreshold(output)
 
         self.previousInput= input_to_agent
@@ -63,11 +68,14 @@ class activeThreshold:
     def trainAgent(self, type):
         if type == "pos":
             target = self.threshold -0.05
+            print("Decreasing threshold")
         else:
+            print("Increasing threshold")
             target = self.threshold + 0.05
         label = self.convertThresholdToBinary(target)
 
         self.Agent.next_state(self.previousInput, label)
+        self.Agent.reset_state()
 
 
 
