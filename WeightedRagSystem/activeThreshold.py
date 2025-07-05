@@ -16,7 +16,8 @@ class activeThreshold:
 
     def convertThresholdToBinary(self, threshold):
         threshold = round(threshold,2)
-        if threshold > 0.15:
+        print("converting: ", threshold)
+        if threshold == 0.15:
             binary = [0,0,0,0]
         elif threshold == 0.20:
             binary = [0,0,0,1]
@@ -24,7 +25,7 @@ class activeThreshold:
             binary = [0,0,1,1]
         elif threshold ==0.30:
             binary = [0,1,1,1]
-        elif threshold < 0.35:
+        elif threshold == 0.35:
             binary = [1,1,1,1]
         return binary
     
@@ -66,35 +67,36 @@ class activeThreshold:
         return self.threshold
 
     def trainAgent(self, type, noResponse, min_dist):
-        delta = abs(self.threshold-min_dist)
-        target_delta = delta/2
+        # Calculate delta from current threshold to true min_dist
+        delta = abs(self.threshold - min_dist)
         possible_values = [0.15, 0.20, 0.25, 0.30, 0.35]
 
         if type == "pos":
-            # Try to refine the threshold closer to the actual min_dist
-            target = (self.threshold + min_dist) / 2
             print("Refining threshold (positive feedback)")
-
-        elif type == "neg" and noResponse == False:
-            print("Decreasing threshold")
-            target = self.threshold - target_delta
-        elif type == "neg" and noResponse == True:
-            target = self.threshold + target_delta
-            print("Increasing threshold")
-        
+            target = self.threshold - (delta / 2)  # move halfway toward min_dist
+        elif type == "neg" and not noResponse:
+            print("Decreasing threshold (false positive)")
+            target = self.threshold - delta
+        elif type == "neg" and noResponse:
+            print("Increasing threshold (false negative)")
+            target = self.threshold + delta
         else:
-            raise ValueError("ERROR!")
+            raise ValueError("ERROR: Invalid training input")
 
-        # get threshold to one of the possible values
+
         closest = None
-        closest_dist = float("inf")
-        for item in possible_values:
-            delta = abs(self.threshold - item)
-            if delta < closest_dist:
-                closest_dist = delta
-                closest = item
+        min_diff = float("inf")
+        for value in possible_values:
+            diff = abs(value - target)
+            if diff < min_diff:
+                min_diff = diff
+                closest = value
+
         self.threshold = closest
-        label = self.convertThresholdToBinary(target)
+        label = self.convertThresholdToBinary(closest)
+
+        print("Threshold label to closest:", closest)
+        print("binary: ", label)
 
         self.Agent.next_state(self.previousInput, label)
         self.Agent.reset_state()

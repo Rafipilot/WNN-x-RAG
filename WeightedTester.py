@@ -1,4 +1,4 @@
-import ollama
+
 from WeightedRagSystem.Vectorizer import vectorizer
 from WeightedRagSystem.ragSystem import ragSystem
 from config import openai_key
@@ -59,13 +59,13 @@ test_cases = [
     ("How to make an LLM", "No relevant information found"),
 ]
 
-def get_rag_feedback(input_text, most_relevant_key):
-    msg = [{
-        'role': 'user',
-        'content': f'Was this information "{most_relevant_key}" mostly generally useful for answering : "{input_text}"?. be quite careful since your response is being used to train the rag system; a fault could mess it up. Respond with "yes" or "no".'
-    }]
-    reply = ollama.chat(model='llama3.2', messages=msg)
-    return reply['message']['content'].strip().lower()
+# def get_rag_feedback(input_text, most_relevant_key):
+#     msg = [{
+#         'role': 'user',
+#         'content': f'Was this information "{most_relevant_key}" mostly generally useful for answering : "{input_text}"?. be quite careful since your response is being used to train the rag system; a fault could mess it up. Respond with "yes" or "no".'
+#     }]
+#     reply = ollama.chat(model='llama3.2', messages=msg)
+#     return reply['message']['content'].strip().lower()
 
 def evaluate_rag(test_cases, epochs):
     stats = []
@@ -103,3 +103,11 @@ def evaluate_rag(test_cases, epochs):
 print("=== Starting RAG evaluation ===")
 results = evaluate_rag(test_cases, epochs=3)
 print("=== Done ===")
+
+while True:
+    user_input = input("Ask... ")
+    user_embedding = vec.get_embedding(user_input)
+
+    key, min_dist = rag.run_query(user_embedding)
+
+    print("Recieved key: ", key)

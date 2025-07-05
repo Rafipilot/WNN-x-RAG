@@ -3,9 +3,7 @@
 import ao_core as ao
 from config import openai_key
 import ao_embeddings.binaryEmbeddings as be
-
 import numpy as np
-
 class weightController:
     def __init__(self, vectorizer):
 
@@ -14,9 +12,11 @@ class weightController:
         self.Arch = ao.Arch(arch_i=[10,4,4, 4], arch_z=[4]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
         self.Agent = ao.Agent(Arch=self.Arch)
         self.em = be.binaryEmbeddings(openai_api_key=openai_key, numberBinaryDigits=10)
+        self.Agent.next_state(np.zeros(22), LABEL=[0,0,1,1])
 
 
     def convert_to_binary(self, interger):
+        #print("converting : ", interger, " to binary")
         if interger == 0.2:
             binary = [0,0,0,0]
         elif interger == 0.4:
@@ -25,11 +25,12 @@ class weightController:
             binary = [0,0,1,1]
         elif interger == 0.8:
             binary = [0,1,1,1]
-        else:
+        elif interger == 1:
             binary = [1,1,1,1]
         return binary
     
     def convert_int_to_binary(self, integer):
+
         if integer == 0:
             binary = [0, 0, 0, 0]
         elif integer == 1:
@@ -38,17 +39,20 @@ class weightController:
             binary = [0, 0, 1, 1]
         elif integer == 3:
             binary = [0, 1, 1, 1]
-        else:
+        elif integer >=4:
             binary = [1, 1, 1, 1]
         return binary
 
     
 
-    def convert_to_int(self, binary):
-        try:
-            binary = binary.tolist()
-        except Exception as e:
-            pass
+    def convert_to_int(self, binary_list):
+
+        binary_list = binary_list.tolist()
+
+        binary =[0,0,0,0]
+        for i in range(sum(binary_list)):
+            binary[i]= 1
+        binary.reverse()
         if binary == [0,0,0,0]:
             integer = 0.2
         elif binary == [0,0,0,1]:
@@ -57,19 +61,19 @@ class weightController:
             integer = 0.6
         elif binary == [0,1,1,1]:
             integer = 0.8
-        else:
+        elif binary == [1,1,1,1]:
             integer  = 1
         return integer
 
     def adjust_weights(self, mostReleventKey):
         for entry in self.vector_db:
             
-            binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
+            #binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
 
             ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
 
             number_of_retrievals = entry["numberOfRetrievals"]
-            number_of_retrievals_binary = self.convert_to_binary(number_of_retrievals)
+            number_of_retrievals_binary = self.convert_int_to_binary(number_of_retrievals)
 
             weight = entry["weight"]
             weight = self.convert_to_binary(weight)
