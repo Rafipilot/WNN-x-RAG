@@ -40,7 +40,7 @@ data = [
 for snippet in data:
     vec.addToVectorDB(snippet)
 
-test_cases = [
+train_cases = [
     ("Where is the Eiffel Tower?", "Eiffel Tower is located in Paris"),
     ("Who created Python?", "Guido van Rossum"),
     ("How long is the Great Wall of China?", "Great Wall of China is over 13,000 miles long"),
@@ -55,8 +55,33 @@ test_cases = [
     ("What is my name", "No relevant information found"), 
     ("What is the capital of the United kingdom", "No relevant information found"), 
     ("What is AO Labs", "No relevant information found"),
-    ("Definition of Revenue", "No relevant information found"),
     ("How to make an LLM", "No relevant information found"),
+]
+
+
+test_cases= [
+            ("what is the speed of sound","about 343 meters per second"),
+            ("Who founded General Electric?", "Thomas Edison also founded General Electric"),
+            ("How long does the moon take to orbit Earth?", "moon orbits Earth approximately every 27.3 days"),
+            ("What affects Earth's tides?", "moon influences Earth's tides"),
+            ("What is the currency of the UK?", "currency of the United Kingdom is the British Pound"),
+            ("What symbol represents the British Pound?", "British Pound is symbolized as £"),
+            ("When was the Eiffel Tower completed?", "Eiffel Tower was completed in 1889"),
+            ("Where is the Empire State Building?", "Empire State Building is located in New York City"),
+            ("Who named Python after Monty Python?", "Guido van Rossum named Python after the British comedy group Monty Python"),
+            ("What happened to the stock market today?", "stock market experienced a slight drop today"),
+            ("How was the recent product launch?", "recent product launch underperformed due to poor marketing"),
+            ("What is the population of Canada?", "No relevant information found"),
+            ("How do black holes form?", "No relevant information found"),
+            ("What is the tallest building in the world?", "No relevant information found"),
+            ("What is 2+2?", "No relevant information found"),
+            ("Tell me about the Amazon rainforest", "No relevant information found"),
+            ("What is the GDP of India?", "No relevant information found"),
+            ("When did World War II end?", "No relevant information found"),
+            ("What is a quantum computer?", "No relevant information found"),
+            ("How many moons does Mars have?", "No relevant information found"),
+            ("Explain relativity theory", "No relevant information found"),
+
 ]
 
 # def get_rag_feedback(input_text, most_relevant_key):
@@ -67,12 +92,11 @@ test_cases = [
 #     reply = ollama.chat(model='llama3.2', messages=msg)
 #     return reply['message']['content'].strip().lower()
 
-def evaluate_rag(test_cases, epochs):
-    stats = []
+def Train_rag(train_cases, epochs):
     for epoch in range(1, epochs+1):
         correct = 0
         first_pass = True
-        for prompt, expected in test_cases:
+        for prompt, expected in train_cases:
             emb = vec.get_embedding(prompt)
             key, min_dist = rag.run_query(emb)
 
@@ -94,16 +118,46 @@ def evaluate_rag(test_cases, epochs):
             rag.wC.train_agent(type, Noresponse, key, rag.ActThresh, min_dist)
             
 
-        accuracy = correct / len(test_cases) * 100
-        stats.append((epoch, accuracy))
-        print(f"Epoch {epoch}: {accuracy:.1f}% correct retrievals")
-    return stats
+        accuracy = correct / len(train_cases) * 100
+        print(f"Epoch {epoch}: {accuracy:.1f}% correct retrievals on training")
+
+def Test_rag(test_list):
+
+    correct = 0
+    first_pass = True
+    for prompt, expected in test_list:
+        emb = vec.get_embedding(prompt)
+        key, min_dist = rag.run_query(emb)
+
+
+        if first_pass:
+            rag.wC.adjust_weights(key)
+            first_pass = False
+
+        if expected in key:
+            correct +=1
+            type = "pos"
+        else:
+            print("error, expected: ", expected, "recived: ", key)
+            type = "neg"
+        if "No relevant information found" in key:
+            Noresponse = True
+        else:
+            Noresponse = False
+        rag.wC.train_agent(type, Noresponse, key, rag.ActThresh, min_dist)
+        
+
+    accuracy = correct / len(test_cases) * 100
+    print("acc: ", accuracy)
 
 # Run the evaluation
-print("=== Starting RAG evaluation ===")
-results = evaluate_rag(test_cases, epochs=3)
+print("=== Starting RAG Training ===")
+results = Train_rag(train_cases, epochs=3)
 print("=== Done ===")
 
+print(" === Starting Testing ===")
+Test_rag(test_cases)
+print("=== Done ===")
 while True:
     user_input = input("Ask... ")
     user_embedding = vec.get_embedding(user_input)

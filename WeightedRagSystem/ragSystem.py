@@ -34,7 +34,6 @@ class ragSystem:
         min_dist = float("inf")  # Initialize to a large value
         most_relevent_entry = None
         for entry in self.vector_db:
-            key = entry["input"]
             embedding = entry["embedding"]
             distance = self.find_distance_embedding(input_embedding, embedding)/ entry["weight"]  
             if distance < min_dist:
