@@ -16,7 +16,6 @@ class activeThreshold:
 
     def convertThresholdToBinary(self, threshold):
         threshold = round(threshold,2)
-        print("converting: ", threshold)
         if threshold == 0.15:
             binary = [0,0,0,0]
         elif threshold == 0.20:
@@ -68,7 +67,7 @@ class activeThreshold:
 
     def trainAgent(self, type, noResponse, min_dist):
         # Calculate delta from current threshold to true min_dist
-        delta = abs(self.threshold - min_dist)
+        delta = min((abs(self.threshold - min_dist) *2), 0.05)
         possible_values = [0.15, 0.20, 0.25, 0.30, 0.35]
 
         if type == "pos":
