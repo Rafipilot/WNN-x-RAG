@@ -1,6 +1,7 @@
 
 from WeightedRagSystem.Vectorizer import vectorizer
 from WeightedRagSystem.ragSystem import ragSystem
+import numpy as np
 from config import openai_key
 
 # Initialize
@@ -60,27 +61,27 @@ train_cases = [
 
 
 test_cases= [
-            ("what is the speed of sound","about 343 meters per second"),
-            ("Who founded General Electric?", "Thomas Edison also founded General Electric"),
-            ("How long does the moon take to orbit Earth?", "moon orbits Earth approximately every 27.3 days"),
-            ("What affects Earth's tides?", "moon influences Earth's tides"),
-            ("What is the currency of the UK?", "currency of the United Kingdom is the British Pound"),
-            ("What symbol represents the British Pound?", "British Pound is symbolized as £"),
-            ("When was the Eiffel Tower completed?", "Eiffel Tower was completed in 1889"),
-            ("Where is the Empire State Building?", "Empire State Building is located in New York City"),
-            ("Who named Python after Monty Python?", "Guido van Rossum named Python after the British comedy group Monty Python"),
-            ("What happened to the stock market today?", "stock market experienced a slight drop today"),
-            ("How was the recent product launch?", "recent product launch underperformed due to poor marketing"),
-            ("What is the population of Canada?", "No relevant information found"),
-            ("How do black holes form?", "No relevant information found"),
-            ("What is the tallest building in the world?", "No relevant information found"),
-            ("What is 2+2?", "No relevant information found"),
-            ("Tell me about the Amazon rainforest", "No relevant information found"),
-            ("What is the GDP of India?", "No relevant information found"),
-            ("When did World War II end?", "No relevant information found"),
-            ("What is a quantum computer?", "No relevant information found"),
-            ("How many moons does Mars have?", "No relevant information found"),
-            ("Explain relativity theory", "No relevant information found"),
+        ("what is the speed of sound","about 343 meters per second"),
+        ("Who founded General Electric?", "Thomas Edison also founded General Electric"),
+        ("How long does the moon take to orbit Earth?", "moon orbits Earth approximately every 27.3 days"),
+        ("What affects Earth's tides?", "moon influences Earth's tides"),
+        ("What is the currency of the UK?", "currency of the United Kingdom is the British Pound"),
+        ("What symbol represents the British Pound?", "British Pound is symbolized as £"),
+        ("When was the Eiffel Tower completed?", "Eiffel Tower was completed in 1889"),
+        ("Where is the Empire State Building?", "Empire State Building is located in New York City"),
+        ("Who named Python after Monty Python?", "Guido van Rossum named Python after the British comedy group Monty Python"),
+        ("What happened to the stock market today?", "stock market experienced a slight drop today"),
+        ("How was the recent product launch?", "recent product launch underperformed due to poor marketing"),
+        ("What is the population of Canada?", "No relevant information found"),
+        ("How do black holes form?", "No relevant information found"),
+        ("What is the tallest building in the world?", "No relevant information found"),
+        ("What is 2+2?", "No relevant information found"),
+        ("Tell me about the Amazon rainforest", "No relevant information found"),
+        ("What is the GDP of India?", "No relevant information found"),
+        ("When did World War II end?", "No relevant information found"),
+        ("What is a quantum computer?", "No relevant information found"),
+        ("How many moons does Mars have?", "No relevant information found"),
+        ("Explain relativity theory", "No relevant information found"),
 
 ]
 
@@ -98,66 +99,131 @@ def Train_rag(train_cases, epochs):
         first_pass = True
         for prompt, expected in train_cases:
             emb = vec.get_embedding(prompt)
-            key, min_dist = rag.run_query(emb)
+            return_array, keys, min_dists = rag.run_query(emb)
 
+            print("RETURN ARRAY FOR : ", prompt, ": ", return_array)
 
             if first_pass:
-                rag.wC.adjust_weights(key)
+                rag.wC.adjust_weights(keys)
                 first_pass = False
+            Noresponse = False
 
-            if expected in key:
+        # Check only available elements up to 3
+            if keys:
+                match_found = any(expected in key for key in keys[:3])
+                if match_found:
+                    correct += 1
+                    type = "pos"
+                    print("correct")
+                else:
+                    type = "neg"
+                    Noresponse = False
+                    print("error, expected: ", expected, "recived: ", keys[0] if keys else "None")
+            elif expected == "No relevant information found":
                 correct +=1
+                print("correct")
+                Noresponse = True
                 type = "pos"
             else:
-                print("error, expected: ", expected, "recived: ", key)
+                print("error, expected: ", expected, "recived: ", keys[0] if keys else "None")
                 type = "neg"
-            if "No relevant information found" in key:
                 Noresponse = True
-            else:
-                Noresponse = False
-            rag.wC.train_agent(type, Noresponse, key, rag.ActThresh, min_dist)
             
+                rag.wC.train_agent(type, Noresponse, keys, min_dists[0], 0, rag.ActThresh)
+
+                
 
         accuracy = correct / len(train_cases) * 100
         print(f"Epoch {epoch}: {accuracy:.1f}% correct retrievals on training")
 
-def Test_rag(test_list):
+# def Test_rag(test_list):
 
-    correct = 0
-    first_pass = True
-    for prompt, expected in test_list:
-        emb = vec.get_embedding(prompt)
-        key, min_dist = rag.run_query(emb)
+#     correct = 0
+#     first_pass = True
+#     for prompt, expected in test_list:
+#         emb = vec.get_embedding(prompt)
+#         key, min_dist = rag.run_query(emb)
 
 
-        if first_pass:
-            rag.wC.adjust_weights(key)
-            first_pass = False
+#         if first_pass:
+#             rag.wC.adjust_weights(key)
+#             first_pass = False
 
-        if expected in key:
-            correct +=1
-            type = "pos"
-        else:
-            print("error, expected: ", expected, "recived: ", key)
-            type = "neg"
-        if "No relevant information found" in key:
-            Noresponse = True
-        else:
-            Noresponse = False
-        rag.wC.train_agent(type, Noresponse, key, rag.ActThresh, min_dist)
+#         if expected in key:
+#             correct +=1
+#             type = "pos"
+#         else:
+#             print("error, expected: ", expected, "recived: ", key)
+#             type = "neg"
+#         if "No relevant information found" in key:
+#             Noresponse = True
+#         else:
+#             Noresponse = False
+#         rag.wC.train_agent(type, Noresponse, key, rag.ActThresh, min_dist)
         
 
-    accuracy = correct / len(test_cases) * 100
-    print("acc: ", accuracy)
+#     accuracy = correct / len(test_cases) * 100
+#     print("acc: ", accuracy)
+
+# from sklearn.metrics import precision_recall_fscore_support, accuracy_score
+# def evaluate_system(test_cases, k=5):
+#     y_true_hit1, y_true_hit5 = [], []
+#     ranks = []
+#     y_true_cls, y_pred_cls = [], []
+
+#     for prompt, expected in test_cases:
+#         emb = vec.get_embedding(prompt)
+#         # Suppose run_query can return the top k keys + distances
+#         return_array = rag.run_query(emb) 
+#         keys = return_array[:][0] 
+        
+#         # HIT@1
+#         hit1 = int(expected in keys[0])
+#         y_true_hit1.append(hit1)
+#         # HIT@k
+#         hitk = int(expected in keys)
+#         y_true_hit5.append(hitk)
+#         # rank for MRR
+#         if expected in keys:
+#             ranks.append(1.0 / (key.index(expected) + 1))
+#         else:
+#             ranks.append(0.0)
+        
+#         # “No info” classification
+#         no_info_true = int(expected == "No relevant information found")
+#         no_info_pred = int(key == "No relevant information found")
+#         y_true_cls.append(no_info_true)
+#         y_pred_cls.append(no_info_pred)
+
+#     # Compute retrieval metrics
+#     hit1_rate = np.mean(y_true_hit1)
+#     hitk_rate = np.mean(y_true_hit5)
+#     mrr = np.mean(ranks)
+
+#     # Classification metrics
+#     precision, recall, f1, _ = precision_recall_fscore_support(
+#         y_true_cls, y_pred_cls, average='binary'
+#     )
+#     accuracy = accuracy_score(y_true_cls, y_pred_cls)
+
+#     print(f"HIT@1: {hit1_rate:.3f}")
+#     print(f"HIT@{k}: {hitk_rate:.3f}")
+#     print(f"MRR:   {mrr:.3f}")
+#     print()
+#     print("No‐Info Classifier:")
+#     print(f"  Precision: {precision:.3f}")
+#     print(f"  Recall:    {recall:.3f}")
+#     print(f"  F1:        {f1:.3f}")
+#     print(f"  Accuracy:  {accuracy:.3f}")
 
 # Run the evaluation
 print("=== Starting RAG Training ===")
 results = Train_rag(train_cases, epochs=3)
 print("=== Done ===")
 
-print(" === Starting Testing ===")
-Test_rag(test_cases)
-print("=== Done ===")
+# print(" === Starting Testing ===")
+# evaluate_system(test_cases)
+# print("=== Done ===")
 while True:
     user_input = input("Ask... ")
     user_embedding = vec.get_embedding(user_input)

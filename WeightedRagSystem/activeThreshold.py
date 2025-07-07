@@ -8,10 +8,10 @@ import numpy as np
 class activeThreshold:
     def __init__(self):
         self.threshold = 0.25
-        self.Arch = ao.Arch(arch_i=[500, 500, 10], arch_z=[4]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
+        self.Arch = ao.Arch(arch_i=[500,500, 10], arch_z=[4]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
         self.Agent = ao.Agent(Arch=self.Arch)
         self.em = be.binaryEmbeddings(openai_api_key=openai_key, numberBinaryDigits=500)
-
+        self.previousInputs = []
         self.Agent.next_state(INPUT=np.zeros(1010), LABEL=[0,0,1,1]) # init train with valid binary output
 
     def convertThresholdToBinary(self, threshold):
@@ -51,7 +51,7 @@ class activeThreshold:
     def adjustThreshold(self, entry, userInputEmbedding):
 
 
-
+        
         DB_embedding_binary = self.em.embeddingToBinary(entry["embedding"])
         userInputEmbeddingBinary = self.em.embeddingToBinary(userInputEmbedding)
         ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
@@ -61,12 +61,13 @@ class activeThreshold:
         self.Agent.reset_state()
         self.threshold = self.convertBinaryToThreshold(output)
 
-        self.previousInput= input_to_agent
+        self.previousInputs.append(input_to_agent)
 
         return self.threshold
 
-    def trainAgent(self, type, noResponse, min_dist):
+    def trainAgent(self, type, noResponse, min_dist, index):
         # Calculate delta from current threshold to true min_dist
+
         delta = min((abs(self.threshold - min_dist) *2), 0.05)
         possible_values = [0.15, 0.20, 0.25, 0.30, 0.35]
 
@@ -94,11 +95,11 @@ class activeThreshold:
         self.threshold = closest
         label = self.convertThresholdToBinary(closest)
 
-        print("Threshold label to closest:", closest)
-        print("binary: ", label)
-
-        self.Agent.next_state(self.previousInput, label)
+        # print("Threshold label to closest:", closest)
+        # print(self.previousInputs[i])
+        self.Agent.next_state(self.previousInputs[index], label)
         self.Agent.reset_state()
+        
 
 
 

@@ -65,7 +65,8 @@ class weightController:
             integer  = 1
         return integer
 
-    def adjust_weights(self, mostReleventKey):
+    def adjust_weights(self, keys):
+        self.most_recent_input = []
         for entry in self.vector_db:
             
             #binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
@@ -83,8 +84,11 @@ class weightController:
 
             input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight
 
-            if mostReleventKey == entry["input"]:
-                self.most_recent_input = input_to_agent # entry that has actually been retrieved
+            for mostReleventKey in keys:
+                # print("most relevent key ", mostReleventKey)
+                # print("entry: ", entry["input"])
+                if mostReleventKey == entry["input"]:
+                    self.most_recent_input.append(input_to_agent) # entry that has actually been retrieved
 
             new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent))
             self.Agent.reset_state()
@@ -95,25 +99,30 @@ class weightController:
             self.vectorizer.save_cache()
 
             
-    def train_agent(self, type, noResponse, most_relevant_key, actThresh, min_dist):
+    def train_agent(self, type, noResponse, keys, min_dist, i, actThresh):
+        # print("keys: ", keys)
+        # print("len keys", len(keys))
+        # print("mri: ", self.most_recent_input)
+        # print("len mri: ", len(self.most_recent_input))
+        for most_relevent_key, recent_vec in zip(keys, self.most_recent_input):
 
-        weighted = self.most_recent_input[18:22]
-        weight = sum(weighted)
-        label = [0,0,0,0]
-        if type == "pos":
-            for i in range(min(weight+1, 4)):
-                label[i] = 1
-            label.reverse()
+            weighted = recent_vec[18:22]
+            weight = sum(weighted)
+            label = [0,0,0,0]
+            if type == "pos":
+                for i in range(min(weight+1, 4)):
+                    label[i] = 1
+                label.reverse()
 
-        else:
-            for i in range(max(weight-1, 1)):
-                label[i] = 1
-            label.reverse()
-            self.vectorizer.incrementNumberFailures(most_relevant_key)
+            else:
+                for i in range(max(weight-1, 1)):
+                    label[i] = 1
+                label.reverse()
+                self.vectorizer.incrementNumberFailures(most_relevent_key)
+            self.Agent.next_state(INPUT=recent_vec, LABEL=label)
+            self.Agent.reset_state()
+            
+            actThresh.trainAgent(type, noResponse, min_dist, i)
 
-        self.Agent.next_state(INPUT=self.most_recent_input, LABEL=label)
-        self.Agent.reset_state()
-        actThresh.trainAgent(type, noResponse, min_dist)
-
-        self.adjust_weights(most_relevant_key)  # Adjust weights after training the agent
-        
+            self.adjust_weights(most_relevent_key)  # Adjust weights after training the agent
+            

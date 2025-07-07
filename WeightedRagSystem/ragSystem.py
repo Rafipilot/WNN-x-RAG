@@ -29,31 +29,35 @@ class ragSystem:
         return distances[0][0]  # Return the distance value
 
     def run_query(self, input_embedding):
-        
-        # This will loop through the vector database at every datapoint and use a cosine similarity to find the most relevent information.
-        min_dist = float("inf")  # Initialize to a large value
-        most_relevent_entry = None
+        # 1) Compute weighted distances
+        return_array = []
+        entries = []
         for entry in self.vector_db:
-            embedding = entry["embedding"]
-            distance = self.find_distance_embedding(input_embedding, embedding)/ entry["weight"]  
-            if distance < min_dist:
-                min_dist = distance
-                most_relevent_entry = entry
-        threshold = self.ActThresh.adjustThreshold(most_relevent_entry, input_embedding)
-        print("Current threshold: ", threshold)
-        print("min dist: ", min_dist)
-        most_relevant_key = most_relevent_entry["input"]
-        if min_dist > threshold:   # TODO active threshold
+            dist = self.find_distance_embedding(input_embedding, entry["embedding"])
+            weighted = dist / entry.get("weight", 1.0)
+            return_array.append((entry["input"], weighted))
+            entries.append(entry)
+        
+        return_array.sort(key=lambda x: x[1])
+        return_array = return_array[:5]
+
+        filtered = []
+        for i, (inp, dist) in enumerate(return_array):
+            thresh = self.ActThresh.adjustThreshold(entries[i], input_embedding)
+            # print("Current threshold for", inp, ":", thresh)
+            if dist <= thresh:
+                filtered.append((inp, dist))
+        return_array = filtered
+
+        if not return_array:
             print("No relevant information found")
-            self.wC.adjust_weights(most_relevant_key)
-            return "No relevant information found.", min_dist
-        
+            return "No relevant information found.", [], []
+
+        keys = [inp for inp, i in return_array]
         for entry in self.vector_db:
-            if entry["input"] == most_relevant_key:
-                entry["numberOfRetrievals"] += 1
+            if entry["input"] in keys:
+                entry["numberOfRetrievals"] = entry.get("numberOfRetrievals", 0) + 1
+        self.wC.adjust_weights(keys)
 
-
-        return most_relevant_key, min_dist
-    
-        
- 
+        min_dists = [dist for _, dist in return_array]
+        return return_array, keys, min_dists
