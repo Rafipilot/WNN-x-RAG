@@ -42,18 +42,18 @@ for snippet in data:
     vec.addToVectorDB(snippet)
 
 train_cases = [
-    ("Where is the Eiffel Tower?", "Eiffel Tower is located in Paris"),
-    ("Who created Python?", "Guido van Rossum"),
-    ("How long is the Great Wall of China?", "Great Wall of China is over 13,000 miles long"),
-    ("What’s the boiling point of water?", "Water boils at 100°C"),
-    ("What’s the capital city of Japan?", "capital of Japan is Tokyo"),
-    ("Who invented the light bulb?", "inventor of the light bulb was Thomas Edison"),
-    ("Tell me about last year’s revenue.", "revenue of $1 million last year"),
-    ("Will it rain today?", "will rain in the evening"),
-    ("Did stocks go up yesterday?", "significant increase yesterday"),
-    ("Was the product launch successful?", "new product launch was a huge success"),
-    ### Totally inrellevent info that is not in DB -should output no info found
-    ("What is my name", "No relevant information found"), 
+    # ("Where is the Eiffel Tower?", "Eiffel Tower is located in Paris"),
+    # ("Who created Python?", "Guido van Rossum"),
+    # ("How long is the Great Wall of China?", "Great Wall of China is over 13,000 miles long"),
+    # ("What’s the boiling point of water?", "Water boils at 100°C"),
+    # ("What’s the capital city of Japan?", "capital of Japan is Tokyo"),
+    # ("Who invented the light bulb?", "inventor of the light bulb was Thomas Edison"),
+    # ("Tell me about last year’s revenue.", "revenue of $1 million last year"),
+    # ("Will it rain today?", "will rain in the evening"),
+    # ("Did stocks go up yesterday?", "significant increase yesterday"),
+    # ("Was the product launch successful?", "new product launch was a huge success"),
+    # ### Totally inrellevent info that is not in DB -should output no info found
+    # ("What is my name", "No relevant information found"), 
     ("What is the capital of the United kingdom", "No relevant information found"), 
     ("What is AO Labs", "No relevant information found"),
     ("How to make an LLM", "No relevant information found"),
@@ -93,48 +93,80 @@ test_cases= [
 #     reply = ollama.chat(model='llama3.2', messages=msg)
 #     return reply['message']['content'].strip().lower()
 
-def Train_rag(train_cases, epochs):
-    for epoch in range(1, epochs+1):
+def train_rag(train_cases, epochs=3):
+    """
+    Train a retrieval-augmented generation (RAG) system over multiple epochs.
+
+    Args:
+        train_cases (List[Tuple[str, str]]): A list of (prompt, expected_key_substring) pairs.
+        epochs (int): Number of training epochs.
+        vec: Embedding vectorizer with get_embedding(prompt) method.
+        rag: RAG engine with methods:
+            - run_query(emb) -> (return_array, keys, min_dists)
+            - wC.adjust_weights()
+            - wC.train_agent(label, no_response, key, distance, threshold)
+            - actThresh (float): action threshold.
+    """
+    for epoch in range(1, epochs + 1):
         correct = 0
-        first_pass = True
+        # Adjust weights once at start of epoch
+        rag.wC.adjust_weights()
+
         for prompt, expected in train_cases:
             emb = vec.get_embedding(prompt)
             return_array, keys, min_dists = rag.run_query(emb)
+            print(f"Query: '{prompt}' -> Returned keys: {keys}")
 
-            print("RETURN ARRAY FOR : ", prompt, ": ", return_array)
+            # Determine if any key matches expected substring in top-3 results
+            no_response = True
+            matched_key = None
+            matched_dist = None
 
-            if first_pass:
-                rag.wC.adjust_weights(keys)
-                first_pass = False
-            Noresponse = False
-
-        # Check only available elements up to 3
-            if keys:
-                match_found = any(expected in key for key in keys[:3])
-                if match_found:
-                    correct += 1
-                    type = "pos"
-                    print("correct")
-                else:
-                    type = "neg"
-                    Noresponse = False
-                    print("error, expected: ", expected, "recived: ", keys[0] if keys else "None")
-            elif expected == "No relevant information found":
-                correct +=1
-                print("correct")
-                Noresponse = True
-                type = "pos"
-            else:
-                print("error, expected: ", expected, "recived: ", keys[0] if keys else "None")
-                type = "neg"
-                Noresponse = True
+            # Check top-3 candidates
+            if return_array != "No relevant information found.":
+                for key, dist in return_array[:3]:
+                    if expected in key:
+                        matched_key = key
+                        matched_dist = dist
+                        no_response = False
+                        correct += 1
+                        print(f"✔ Match found: '{key}' (dist={dist:.4f})")
+                    else:
+                        no_response = False
+                        label = "neg"
+                        
+                        print(f"Training: label={label}, no_response={no_response}, key={key}, dist={dist}")
+                        rag.wC.train_agent(label, no_response, key, dist, rag.ActThresh)
             
-                rag.wC.train_agent(type, Noresponse, keys, min_dists[0], 0, rag.ActThresh)
 
-                
+            else:
+                no_response = True
 
-        accuracy = correct / len(train_cases) * 100
-        print(f"Epoch {epoch}: {accuracy:.1f}% correct retrievals on training")
+                                # Define training label
+            if matched_key:
+                label = "pos"
+            else:
+                label = "neg"
+
+            # If system returned nothing at all but expected 'No relevant information found'
+            if not keys and expected == "No relevant information found":
+                no_response = True
+                label = "pos"
+                correct += 1
+                print("✔ Correct no-response")
+
+
+
+            # Train agent on this instance
+            if matched_key and matched_dist:
+                threshold = rag.ActThresh
+                print(f"Training: label={label}, no_response={no_response}, key={matched_key}, dist={matched_dist}")
+                rag.wC.train_agent(label, no_response, matched_key, matched_dist, threshold)
+            
+
+        accuracy = (correct / len(train_cases)) * 100
+        print(f"Epoch {epoch}/{epochs}: {accuracy:.1f}% accuracy")
+
 
 # def Test_rag(test_list):
 
@@ -165,60 +197,60 @@ def Train_rag(train_cases, epochs):
 #     accuracy = correct / len(test_cases) * 100
 #     print("acc: ", accuracy)
 
-# from sklearn.metrics import precision_recall_fscore_support, accuracy_score
-# def evaluate_system(test_cases, k=5):
-#     y_true_hit1, y_true_hit5 = [], []
-#     ranks = []
-#     y_true_cls, y_pred_cls = [], []
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score
+def evaluate_system(test_cases, k=5):
+    y_true_hit1, y_true_hit5 = [], []
+    ranks = []
+    y_true_cls, y_pred_cls = [], []
 
-#     for prompt, expected in test_cases:
-#         emb = vec.get_embedding(prompt)
-#         # Suppose run_query can return the top k keys + distances
-#         return_array = rag.run_query(emb) 
-#         keys = return_array[:][0] 
+    for prompt, expected in test_cases:
+        emb = vec.get_embedding(prompt)
+        # Suppose run_query can return the top k keys + distances
+        return_array = rag.run_query(emb) 
+        keys = return_array[:][0] 
         
-#         # HIT@1
-#         hit1 = int(expected in keys[0])
-#         y_true_hit1.append(hit1)
-#         # HIT@k
-#         hitk = int(expected in keys)
-#         y_true_hit5.append(hitk)
-#         # rank for MRR
-#         if expected in keys:
-#             ranks.append(1.0 / (key.index(expected) + 1))
-#         else:
-#             ranks.append(0.0)
+        # HIT@1
+        hit1 = int(expected in keys[0])
+        y_true_hit1.append(hit1)
+        # HIT@k
+        hitk = int(expected in keys)
+        y_true_hit5.append(hitk)
+        # rank for MRR
+        if expected in keys:
+            ranks.append(1.0 / (key.index(expected) + 1))
+        else:
+            ranks.append(0.0)
         
-#         # “No info” classification
-#         no_info_true = int(expected == "No relevant information found")
-#         no_info_pred = int(key == "No relevant information found")
-#         y_true_cls.append(no_info_true)
-#         y_pred_cls.append(no_info_pred)
+        # “No info” classification
+        no_info_true = int(expected == "No relevant information found")
+        no_info_pred = int(key == "No relevant information found")
+        y_true_cls.append(no_info_true)
+        y_pred_cls.append(no_info_pred)
 
-#     # Compute retrieval metrics
-#     hit1_rate = np.mean(y_true_hit1)
-#     hitk_rate = np.mean(y_true_hit5)
-#     mrr = np.mean(ranks)
+    # Compute retrieval metrics
+    hit1_rate = np.mean(y_true_hit1)
+    hitk_rate = np.mean(y_true_hit5)
+    mrr = np.mean(ranks)
 
-#     # Classification metrics
-#     precision, recall, f1, _ = precision_recall_fscore_support(
-#         y_true_cls, y_pred_cls, average='binary'
-#     )
-#     accuracy = accuracy_score(y_true_cls, y_pred_cls)
+    # Classification metrics
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        y_true_cls, y_pred_cls, average='binary'
+    )
+    accuracy = accuracy_score(y_true_cls, y_pred_cls)
 
-#     print(f"HIT@1: {hit1_rate:.3f}")
-#     print(f"HIT@{k}: {hitk_rate:.3f}")
-#     print(f"MRR:   {mrr:.3f}")
-#     print()
-#     print("No‐Info Classifier:")
-#     print(f"  Precision: {precision:.3f}")
-#     print(f"  Recall:    {recall:.3f}")
-#     print(f"  F1:        {f1:.3f}")
-#     print(f"  Accuracy:  {accuracy:.3f}")
+    print(f"HIT@1: {hit1_rate:.3f}")
+    print(f"HIT@{k}: {hitk_rate:.3f}")
+    print(f"MRR:   {mrr:.3f}")
+    print()
+    print("No‐Info Classifier:")
+    print(f"  Precision: {precision:.3f}")
+    print(f"  Recall:    {recall:.3f}")
+    print(f"  F1:        {f1:.3f}")
+    print(f"  Accuracy:  {accuracy:.3f}")
 
 # Run the evaluation
 print("=== Starting RAG Training ===")
-results = Train_rag(train_cases, epochs=3)
+results = train_rag(train_cases, epochs=3)
 print("=== Done ===")
 
 # print(" === Starting Testing ===")

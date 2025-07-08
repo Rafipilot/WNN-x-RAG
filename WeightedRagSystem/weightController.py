@@ -4,6 +4,8 @@ import ao_core as ao
 from config import openai_key
 import ao_embeddings.binaryEmbeddings as be
 import numpy as np
+import warnings
+
 class weightController:
     def __init__(self, vectorizer):
 
@@ -16,7 +18,8 @@ class weightController:
 
 
     def convert_to_binary(self, interger):
-        #print("converting : ", interger, " to binary")
+        interger = round(interger,2)
+        
         if interger == 0.2:
             binary = [0,0,0,0]
         elif interger == 0.4:
@@ -27,6 +30,9 @@ class weightController:
             binary = [0,1,1,1]
         elif interger == 1:
             binary = [1,1,1,1]
+        else:
+            print("converting : ", interger, " to binary")
+            print("error")
         return binary
     
     def convert_int_to_binary(self, integer):
@@ -65,8 +71,8 @@ class weightController:
             integer  = 1
         return integer
 
-    def adjust_weights(self, keys):
-        self.most_recent_input = []
+    def adjust_weights(self):
+        self.most_recent_inputs = []
         for entry in self.vector_db:
             
             #binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
@@ -84,11 +90,7 @@ class weightController:
 
             input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight
 
-            for mostReleventKey in keys:
-                # print("most relevent key ", mostReleventKey)
-                # print("entry: ", entry["input"])
-                if mostReleventKey == entry["input"]:
-                    self.most_recent_input.append(input_to_agent) # entry that has actually been retrieved
+            self.most_recent_inputs.append(input_to_agent)
 
             new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent))
             self.Agent.reset_state()
@@ -99,13 +101,25 @@ class weightController:
             self.vectorizer.save_cache()
 
             
-    def train_agent(self, type, noResponse, keys, min_dist, i, actThresh):
+    def train_agent(self, type, noResponse, key,  min_dist, actThresh):
         # print("keys: ", keys)
         # print("len keys", len(keys))
         # print("mri: ", self.most_recent_input)
         # print("len mri: ", len(self.most_recent_input))
-        for most_relevent_key, recent_vec in zip(keys, self.most_recent_input):
-
+        #if noResponse == False:
+        if noResponse == False:
+            recent_vec = None
+            index = None
+            for i, value in enumerate(self.vector_db):
+                if value["input"] == key:
+                    recent_vec = self.most_recent_inputs[i]
+                    index = i
+                    break
+            if not recent_vec:
+                warnings.warn("No recent vec ERROR")
+                print("vect db: ", [item["input"] for item in self.vector_db])
+                print("key: ", key)
+    
             weighted = recent_vec[18:22]
             weight = sum(weighted)
             label = [0,0,0,0]
@@ -118,11 +132,27 @@ class weightController:
                 for i in range(max(weight-1, 1)):
                     label[i] = 1
                 label.reverse()
-                self.vectorizer.incrementNumberFailures(most_relevent_key)
-            self.Agent.next_state(INPUT=recent_vec, LABEL=label)
+                self.vectorizer.incrementNumberFailures(key)
+                print("negative training: ", weight, " to ", label)
+            self.Agent.next_state(INPUT=recent_vec, LABEL=label, unsequenced=False)
             self.Agent.reset_state()
             
-            actThresh.trainAgent(type, noResponse, min_dist, i)
+            actThresh.trainAgent(type, noResponse, min_dist, index)
 
-            self.adjust_weights(most_relevent_key)  # Adjust weights after training the agent
             
+        elif noResponse == True and type == "pos":
+            for INPUT in self.most_recent_inputs:
+                self.Agent.next_state(INPUT, Cpos= True, unsequenced=True)
+                self.Agent.reset_state()
+        elif noResponse == True and type == "neg":
+            for INPUT, entry in zip(self.most_recent_inputs, self.vector_db):
+                # Increase the weight of everything incrementally
+                target_weight = min(entry["weight"]+0.2, 1)
+                target_weight_binary = self.convert_to_binary(target_weight)
+
+                self.Agent.next_state(INPUT, target_weight_binary)
+        else:
+            warnings.warn("Invalid Response raising error")
+            raise ValueError 
+            
+        self.adjust_weights()  # Adjust weights after training the agent

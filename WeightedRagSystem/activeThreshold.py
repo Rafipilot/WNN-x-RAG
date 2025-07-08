@@ -49,8 +49,6 @@ class activeThreshold:
         return threshold
 
     def adjustThreshold(self, entry, userInputEmbedding):
-
-
         
         DB_embedding_binary = self.em.embeddingToBinary(entry["embedding"])
         userInputEmbeddingBinary = self.em.embeddingToBinary(userInputEmbedding)
