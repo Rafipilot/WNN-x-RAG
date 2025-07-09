@@ -93,8 +93,6 @@ class activeThreshold:
         self.threshold = closest
         label = self.convertThresholdToBinary(closest)
 
-        # print("Threshold label to closest:", closest)
-        # print(self.previousInputs[i])
         self.Agent.next_state(self.previousInputs[index], label)
         self.Agent.reset_state()
         

@@ -101,7 +101,7 @@ class weightController:
             self.vectorizer.save_cache()
 
             
-    def train_agent(self, type, noResponse, key,  min_dist, actThresh):
+    def train_agent(self, type, noResponse, key,  min_dist, index, actThresh):
         # print("keys: ", keys)
         # print("len keys", len(keys))
         # print("mri: ", self.most_recent_input)
@@ -109,11 +109,9 @@ class weightController:
         #if noResponse == False:
         if noResponse == False:
             recent_vec = None
-            index = None
             for i, value in enumerate(self.vector_db):
                 if value["input"] == key:
                     recent_vec = self.most_recent_inputs[i]
-                    index = i
                     break
             if not recent_vec:
                 warnings.warn("No recent vec ERROR")
