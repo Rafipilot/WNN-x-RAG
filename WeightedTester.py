@@ -35,7 +35,6 @@ data = [
     "The British Pound is symbolized as £.",
     "The weather tomorrow will be cloudy with occasional showers.",
     "The stock market experienced a slight drop today.",
-    "The recent product launch underperformed due to poor marketing."
 ]
 
 for snippet in data:
@@ -71,7 +70,6 @@ test_cases= [
         ("Where is the Empire State Building?", "Empire State Building is located in New York City"),
         ("Who named Python after Monty Python?", "Guido van Rossum named Python after the British comedy group Monty Python"),
         ("What happened to the stock market today?", "stock market experienced a slight drop today"),
-        ("How was the recent product launch?", "recent product launch underperformed due to poor marketing"),
         ("What is the population of Canada?", "No relevant information found"),
         ("How do black holes form?", "No relevant information found"),
         ("What is the tallest building in the world?", "No relevant information found"),
@@ -95,7 +93,7 @@ test_cases= [
 
 def train_rag(train_cases, epochs=3):
 
-    for epoch in range(1, epochs + 1):
+    for epoch in range(epochs):
         correct = 0
         # Adjust weights once at start of epoch
         rag.wC.adjust_weights()
@@ -171,20 +169,22 @@ def Test_rag(test):
             matched_dist = None
 
             # Check top-3 candidates
+            index = None
             if return_array != "No relevant information found.":
-                for key, dist in return_array[:3]:
+                for i, (key, dist) in enumerate(return_array[:3]):
                     if expected in key:
                         matched_key = key
                         matched_dist = dist
                         no_response = False
                         correct += 1
+                        index =i
                         print(f"✔ Match found: '{key}' (dist={dist:.4f})")
                     else:
                         no_response = False
                         label = "neg"
                         
-                        print(f"Training: label={label}, no_response={no_response}, key={key}, dist={dist}")
-                        rag.wC.train_agent(label, no_response, key, dist, rag.ActThresh)
+                        #print(f"Training: label={label}, no_response={no_response}, key={key}, dist={dist}")
+                        # rag.wC.train_agent(label, no_response, key, dist, i, rag.ActThresh)
             
 
             else:
@@ -203,81 +203,26 @@ def Test_rag(test):
                 correct += 1
                 print("✔ Correct no-response")
 
-
-
             # Train agent on this instance
             if matched_key and matched_dist:
-                threshold = rag.ActThresh
                 print(f"Training: label={label}, no_response={no_response}, key={matched_key}, dist={matched_dist}")
-                rag.wC.train_agent(label, no_response, matched_key, matched_dist, threshold)
+                rag.wC.train_agent(label, no_response, matched_key, matched_dist,index, rag.ActThresh)
             
-
-        accuracy = (correct / len(train_cases)) * 100
+        accuracy = (correct / len(test)) * 100
         print("acc: ", accuracy)
-
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score
-def evaluate_system(test_cases, k=5):
-    y_true_hit1, y_true_hit5 = [], []
-    ranks = []
-    y_true_cls, y_pred_cls = [], []
-
-    for prompt, expected in test_cases:
-        emb = vec.get_embedding(prompt)
-        # Suppose run_query can return the top k keys + distances
-        return_array = rag.run_query(emb) 
-        keys = return_array[:][0] 
-        
-        # HIT@1
-        hit1 = int(expected in keys[0])
-        y_true_hit1.append(hit1)
-        # HIT@k
-        hitk = int(expected in keys)
-        y_true_hit5.append(hitk)
-        # rank for MRR
-        if expected in keys:
-            ranks.append(1.0 / (key.index(expected) + 1))
-        else:
-            ranks.append(0.0)
-        
-        # “No info” classification
-        no_info_true = int(expected == "No relevant information found")
-        no_info_pred = int(key == "No relevant information found")
-        y_true_cls.append(no_info_true)
-        y_pred_cls.append(no_info_pred)
-
-    # Compute retrieval metrics
-    hit1_rate = np.mean(y_true_hit1)
-    hitk_rate = np.mean(y_true_hit5)
-    mrr = np.mean(ranks)
-
-    # Classification metrics
-    precision, recall, f1, _ = precision_recall_fscore_support(
-        y_true_cls, y_pred_cls, average='binary'
-    )
-    accuracy = accuracy_score(y_true_cls, y_pred_cls)
-
-    print(f"HIT@1: {hit1_rate:.3f}")
-    print(f"HIT@{k}: {hitk_rate:.3f}")
-    print(f"MRR:   {mrr:.3f}")
-    print()
-    print("No‐Info Classifier:")
-    print(f"  Precision: {precision:.3f}")
-    print(f"  Recall:    {recall:.3f}")
-    print(f"  F1:        {f1:.3f}")
-    print(f"  Accuracy:  {accuracy:.3f}")
 
 # Run the evaluation
 print("=== Starting RAG Training ===")
-results = train_rag(train_cases, epochs=3)
+results = train_rag(train_cases, epochs=1)
 print("=== Done ===")
 
 # print(" === Starting Testing ===")
 Test_rag(test_cases)
 # print("=== Done ===")
-while True:
-    user_input = input("Ask... ")
-    user_embedding = vec.get_embedding(user_input)
+# while True:
+#     user_input = input("Ask... ")
+#     user_embedding = vec.get_embedding(user_input)
 
-    key, min_dist = rag.run_query(user_embedding)
+#     key, min_dist = rag.run_query(user_embedding)
 
-    print("Recieved key: ", key)
+#     print("Recieved key: ", key)

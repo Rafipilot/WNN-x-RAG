@@ -6,11 +6,15 @@ from WeightedRagSystem.weightController import weightController
 from WeightedRagSystem.activeThreshold import activeThreshold
         
 class ragSystem:
-    def __init__(self, vectorizer):
+    def __init__(self, vectorizer, activeThresholdTrueFalse=True):
         self.wC = weightController(vectorizer)
         self.vectorizer = vectorizer
         self.vector_db = vectorizer.cache
-        self.ActThresh = activeThreshold()
+        self.activeThresholdTrueFalse = activeThresholdTrueFalse
+
+        self.ActThresh = activeThreshold(self.activeThresholdTrueFalse)
+
+        
 
     def normalize(self, embedding): 
         norm = np.linalg.norm(embedding)
@@ -42,17 +46,18 @@ class ragSystem:
         return_array.sort(key=lambda x: x[1])
         return_array = return_array[:5]
 
-        filtered = []
-        for i, (inp, dist) in enumerate(return_array):
-            thresh = self.ActThresh.adjustThreshold(entries[i], input_embedding)
-            # print("Current threshold for", inp, ":", thresh)
-            if dist <= thresh:
-                filtered.append((inp, dist))
-        return_array = filtered
+        if self.activeThresholdTrueFalse:
+            filtered = []
+            for i, (inp, dist) in enumerate(return_array):
+                thresh = self.ActThresh.adjustThreshold(entries[i], input_embedding)
+                # print("Current threshold for", inp, ":", thresh)
+                if dist <= thresh:
+                    filtered.append((inp, dist))
+            return_array = filtered
 
         if not return_array:
             print("No relevant information found")
-            return "No relevant information found.", [], []
+            return "No relevant information found.", ["No relevant information found."], []
 
         keys = [inp for inp, i in return_array]
         for entry in self.vector_db:

@@ -154,3 +154,8 @@ class weightController:
             raise ValueError 
             
         self.adjust_weights()  # Adjust weights after training the agent
+
+    def reset_weights(self):
+        for entry in self.vector_db:
+            entry["weight"] = 0.8
+        self.vectorizer.save_cache()

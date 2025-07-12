@@ -1,70 +1,58 @@
-
+import nltk
+from datasets import load_dataset
+from nltk.tokenize import sent_tokenize
 from WeightedRagSystem.Vectorizer import vectorizer
 from WeightedRagSystem.ragSystem import ragSystem
-import numpy as np
 from config import openai_key
 
-# Initialize
+nltk.download('punkt')
+
 vec = vectorizer(openai_api_key=openai_key, cache_name="VectorDB.json")
-rag = ragSystem(vec)
+rag = ragSystem(vec, activeThresholdTrueFalse=False)
 
-from datasets import load_dataset
+dataset = load_dataset("squad", split="validation")
 
-# 2. Load the "covidqa" split from the galileo‑ai/ragbench repo
-#    (this gives you a dict with fields ["question","answers","id",…])
-dataset = load_dataset("galileo-ai/ragbench", "covidqa", split="train")
-print(dataset[0:5])
+questions, answers = [], []
 
-# 3. Turn it into your (prompt, expected) format.
-#    We'll take the first listed answer as the “ground truth.”
-test_cases = [
-    (ex["question"], ex["answers"][0])
-    for ex in dataset
-]
+for ex in dataset.select(range(50)):
+    q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
+    questions.append(q)
+    answers.append(a)
+    for sent in sent_tokenize(ctx):
+        vec.addToVectorDB(sent)
 
-# 4. (Optional) If the dataset includes “no‐answer” cases, map those to your
-#    "No relevant information found" label instead of answers[0].
+rag.wC.adjust_weights()
+rag.wC.reset_weights()
 
-# 5. Plug it into your existing evaluation:
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score
-import numpy as np
+correct = 0
 
-def evaluate_system(test_cases, vec, rag, k=5, no_answer_label="No relevant information found"):
-    hit1, hitk, mrr = [], [], []
-    y_true_cls, y_pred_cls = [], []
+for i, (question, answer) in enumerate(zip(questions, answers)):
+    emb = vec.get_embedding(question)
+    return_array, keys, min_dists = rag.run_query(emb)
+    print(f"Query: '{question}' -> Returned keys: {keys}")
 
-    for prompt, expected in test_cases:
-        emb = vec.get_embedding(prompt)
-        # assume you've extended run_query to return top-k
-        keys, dists = rag.run_query(emb, top_k=k)
+    matched_key, matched_dist = None, None
+    correct_flag = False
+    no_response = True
 
-        # Retrieval metrics
-        hit1.append(int(expected in keys[:1]))
-        hitk.append(int(expected in keys))
-        if expected in keys:
-            mrr.append(1.0 / (keys.index(expected) + 1))
-        else:
-            mrr.append(0.0)
+    if return_array != "No relevant information found.":
+        for idx, (key, dist) in enumerate(return_array):
+            if answer in key:
+                matched_key = key
+                matched_dist = dist
+                no_response = False
+                if not correct_flag:
+                    correct += 1
+                    correct_flag = True
+                print(f"✔ Match found: '{key}' (dist={dist:.4f})")
+            else:
+                print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
+                rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)
+    else:
+        no_response = True
 
-        # No‑answer classification
-        true_no = int(expected == no_answer_label)
-        pred_no = int(keys[0] == no_answer_label)
-        y_true_cls.append(true_no)
-        y_pred_cls.append(pred_no)
+    if matched_key and matched_dist:
+        print(f"Training: label=pos, no_response={no_response}, key={matched_key}, dist={matched_dist}")
+        rag.wC.train_agent("pos", no_response, matched_key, matched_dist, idx, rag.ActThresh)
 
-    print(f"HIT@1: {np.mean(hit1):.3f}")
-    print(f"HIT@{k}: {np.mean(hitk):.3f}")
-    print(f"MRR:   {np.mean(mrr):.3f}")
-
-    prec, rec, f1, _ = precision_recall_fscore_support(
-        y_true_cls, y_pred_cls, average="binary", zero_division=0
-    )
-    acc = accuracy_score(y_true_cls, y_pred_cls)
-
-    print("\nNo‑Info Classifier:")
-    print(f"  Precision: {prec:.3f}")
-    print(f"  Recall:    {rec:.3f}")
-    print(f"  F1:        {f1:.3f}")
-    print(f"  Accuracy:  {acc:.3f}")
-
-#evaluate_system(test_cases, vec, rag, k=5)
+print(f"Accuracy: {correct / len(questions) * 100:.2f}%")

@@ -52,11 +52,10 @@ class vectorizer:
         for i,entry in enumerate(self.cache):
             if entry["input"] == input:
                 self.cache[i]["numberFailures"] += 1
-                print("Incrementing num faliures")
                 break
         self.save_cache()
         
-    def get_embedding(self, input):
+    def get_embedding(self, input):  # to do introduce a caching mechanism for embeddings not in vector db for eval
  
         response = client.embeddings.create(
             input=input,
