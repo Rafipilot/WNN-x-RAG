@@ -72,13 +72,13 @@ class activeThreshold:
             possible_values = [0.15, 0.20, 0.25, 0.30, 0.35]
 
             if type == "pos":
-                print("Refining threshold (positive feedback)")
+                #print("Refining threshold (positive feedback)")
                 target = self.threshold - (delta / 2)  # move halfway toward min_dist
             elif type == "neg" and not noResponse:
-                print("Decreasing threshold (false positive)")
+                #print("Decreasing threshold (false positive)")
                 target = self.threshold - delta
             elif type == "neg" and noResponse:
-                print("Increasing threshold (false negative)")
+                #print("Increasing threshold (false negative)")
                 target = self.threshold + delta
             else:
                 raise ValueError("ERROR: Invalid training input")

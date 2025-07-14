@@ -14,45 +14,93 @@ dataset = load_dataset("squad", split="validation")
 
 questions, answers = [], []
 
-for ex in dataset.select(range(50)):
+def sentence_chunker(text, chunk_size=300):
+    sentences = sent_tokenize(text)
+    chunks = []
+    current_chunk = ""
+    for sentence in sentences:
+        if len(current_chunk) + len(sentence) <= chunk_size:
+            current_chunk += " " + sentence
+        else:
+            chunks.append(current_chunk.strip())
+            current_chunk = sentence
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    return chunks#
+
+def compute_metrics(ranks, ks=(1,3)):
+    n = len(ranks)
+    metrics = {}
+    metrics["Number"] = n
+    # Hit@k
+    for k in ks:
+        hits = sum(1 for r in ranks if (r is not None and r < k))
+        metrics[f"Hit@{k}"] = hits / n
+    # MRR
+    reciprocal_ranks = [(1.0/(r+1)) if r is not None else 0.0 for r in ranks]
+    metrics["MRR"] = sum(reciprocal_ranks) / n
+    return metrics
+
+
+for ex in dataset.select(range(200)):
     q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
     questions.append(q)
     answers.append(a)
-    for sent in sent_tokenize(ctx):
-        vec.addToVectorDB(sent)
+    chunks = sentence_chunker(ctx)
+    for chunk in chunks: # tokanization
+        vec.addToVectorDB(chunk)
 
-rag.wC.adjust_weights()
-rag.wC.reset_weights()
 
-correct = 0
+def run_eval(num_trials_array = []):
+    metrics_array = []
+    for k, num_trials in enumerate(num_trials_array):
+        rag.wC.reset_weights()
 
-for i, (question, answer) in enumerate(zip(questions, answers)):
-    emb = vec.get_embedding(question)
-    return_array, keys, min_dists = rag.run_query(emb)
-    print(f"Query: '{question}' -> Returned keys: {keys}")
 
-    matched_key, matched_dist = None, None
-    correct_flag = False
-    no_response = True
+        ranks = []
 
-    if return_array != "No relevant information found.":
-        for idx, (key, dist) in enumerate(return_array):
-            if answer in key:
-                matched_key = key
-                matched_dist = dist
-                no_response = False
-                if not correct_flag:
-                    correct += 1
-                    correct_flag = True
-                print(f"✔ Match found: '{key}' (dist={dist:.4f})")
+        for i, (question, answer) in enumerate(zip(questions[:num_trials], answers[:num_trials])):
+            emb = vec.get_embedding(question)
+            return_array, keys, min_dists = rag.run_query(emb)
+            #print(f"Query: '{question}' -> Returned keys: {keys}")
+
+            matched_key, matched_dist, matched_index = None, None, None
+            correct_flag = False
+            no_response = True
+
+            if return_array != "No relevant information found.":
+                for idx, (key, dist) in enumerate(return_array[:3]):
+                    if answer in key:
+                        matched_key = key
+                        matched_dist = dist
+                        no_response = False
+                        if not correct_flag:
+                            correct_flag = True
+                            matched_index = idx
+                            ranks.append(idx)
+                    # print(f"✔ Match found: '{key}' (dist={dist:.4f})")
+                    else:                
+                        if (idx ==0 or idx ==1) and dist < 0.3: # if it is top 1 or 2 and incorrect then the weight is too large
+                            print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
+                            #rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)    # Not doing this since the weight deceases by too much TODO when i increase level of quantization of the weights we can have a slight neg signal atm it is too strong
+
+            if matched_key and matched_dist:
+                print(f"Training: label=pos, no_response={no_response}, key={matched_key}, dist={matched_dist}")
+                rag.wC.train_agent("pos", no_response, matched_key, matched_dist, matched_index, rag.ActThresh)
             else:
-                print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
-                rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)
-    else:
-        no_response = True
+                print("Faliure of RAG sys query: ", question, " ra: ", return_array, " answer: ", answer)
 
-    if matched_key and matched_dist:
-        print(f"Training: label=pos, no_response={no_response}, key={matched_key}, dist={matched_dist}")
-        rag.wC.train_agent("pos", no_response, matched_key, matched_dist, idx, rag.ActThresh)
+            print("Question number:", i)
 
-print(f"Accuracy: {correct / len(questions) * 100:.2f}%")
+        metrics = compute_metrics(ranks)
+        metrics_array.append(metrics)
+        print(metrics)
+        print("finished test number: ", k)
+    return metrics_array
+
+if __name__ == "__main__":
+    print("Running EVAL")
+    metrics_array = run_eval(num_trials_array=[90, 120])
+    print("Finished")
+    
+    print("Metrics: ", metrics_array)

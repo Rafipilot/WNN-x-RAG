@@ -47,6 +47,8 @@ class weightController:
             binary = [0, 1, 1, 1]
         elif integer >=4:
             binary = [1, 1, 1, 1]
+        else:
+            print("error: ", integer)
         return binary
 
     
@@ -69,6 +71,10 @@ class weightController:
             integer = 0.8
         elif binary == [1,1,1,1]:
             integer  = 1
+        else:
+            print("unknown bin: ", binary)
+            raise ValueError 
+            
         return integer
 
     def adjust_weights(self):
@@ -118,7 +124,8 @@ class weightController:
                 print("vect db: ", [item["input"] for item in self.vector_db])
                 print("key: ", key)
     
-            weighted = recent_vec[18:22]
+            weighted = recent_vec[-4:]
+            print("Weight: ", weighted)
             weight = sum(weighted)
             label = [0,0,0,0]
             if type == "pos":
@@ -131,7 +138,7 @@ class weightController:
                     label[i] = 1
                 label.reverse()
                 self.vectorizer.incrementNumberFailures(key)
-                print("negative training: ", weight, " to ", label)
+                print("negative training: ", weighted, " to ", label)
             self.Agent.next_state(INPUT=recent_vec, LABEL=label, unsequenced=False)
             self.Agent.reset_state()
             
