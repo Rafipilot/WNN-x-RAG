@@ -4,6 +4,7 @@ from nltk.tokenize import sent_tokenize
 from WeightedRagSystem.Vectorizer import vectorizer
 from WeightedRagSystem.ragSystem import ragSystem
 from config import openai_key
+import random
 
 nltk.download('punkt')
 
@@ -12,7 +13,7 @@ rag = ragSystem(vec, activeThresholdTrueFalse=False)
 
 dataset = load_dataset("squad", split="validation")
 
-questions, answers = [], []
+questions_answers = []
 
 def sentence_chunker(text, chunk_size=300):
     sentences = sent_tokenize(text)
@@ -44,8 +45,7 @@ def compute_metrics(ranks, ks=(1,3)):
 
 for ex in dataset.select(range(200)):
     q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
-    questions.append(q)
-    answers.append(a)
+    questions_answers.append([q, a])
     chunks = sentence_chunker(ctx)
     for chunk in chunks: # tokanization
         vec.addToVectorDB(chunk)
@@ -53,13 +53,16 @@ for ex in dataset.select(range(200)):
 
 def run_eval(num_trials_array = []):
     metrics_array = []
+    random.shuffle(questions_answers)
     for k, num_trials in enumerate(num_trials_array):
         rag.wC.reset_weights()
 
 
         ranks = []
 
-        for i, (question, answer) in enumerate(zip(questions[:num_trials], answers[:num_trials])):
+        for i, questions_answer in enumerate(questions_answers[:num_trials]):
+            question = questions_answer[0]
+            answer = questions_answer[1]
             emb = vec.get_embedding(question)
             return_array, keys, min_dists = rag.run_query(emb)
             #print(f"Query: '{question}' -> Returned keys: {keys}")
@@ -82,13 +85,15 @@ def run_eval(num_trials_array = []):
                     else:                
                         if (idx ==0 or idx ==1) and dist < 0.3: # if it is top 1 or 2 and incorrect then the weight is too large
                             print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
-                            #rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)    # Not doing this since the weight deceases by too much TODO when i increase level of quantization of the weights we can have a slight neg signal atm it is too strong
+                            rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)    # Not doing this since the weight deceases by too much TODO when i increase level of quantization of the weights we can have a slight neg signal atm it is too strong
 
             if matched_key and matched_dist:
-                print(f"Training: label=pos, no_response={no_response}, key={matched_key}, dist={matched_dist}")
-                rag.wC.train_agent("pos", no_response, matched_key, matched_dist, matched_index, rag.ActThresh)
+                print(f"Training: label=pos, no_response=False, key={matched_key}, dist={matched_dist}")
+                rag.wC.train_agent("pos", False, matched_key, matched_dist, matched_index, rag.ActThresh)
             else:
                 print("Faliure of RAG sys query: ", question, " ra: ", return_array, " answer: ", answer)
+                rag.wC.increase_weight(answer)
+
 
             print("Question number:", i)
 
@@ -100,7 +105,7 @@ def run_eval(num_trials_array = []):
 
 if __name__ == "__main__":
     print("Running EVAL")
-    metrics_array = run_eval(num_trials_array=[90, 120])
+    metrics_array = run_eval(num_trials_array=[120])
     print("Finished")
     
     print("Metrics: ", metrics_array)
