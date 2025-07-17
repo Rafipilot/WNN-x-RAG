@@ -131,10 +131,11 @@ class weightController:
         elif noResponse == True and type == "neg":
             for INPUT, entry in zip(self.most_recent_inputs, self.vector_db):
                 # Increase the weight of everything incrementally
-                target_weight = min(entry["weight"]+0.05, 1)
+                target_weight = min(entry["weight"]+0.1, 1)
                 target_weight_binary = self.convert_to_binary(target_weight)
 
-                self.Agent.next_state(INPUT, target_weight_binary)
+                self.Agent.next_state(INPUT, target_weight_binary, unsequenced=True)
+                self.Agent.reset_state()
         else:
             warnings.warn("Invalid Response raising error")
             raise ValueError 
@@ -142,7 +143,7 @@ class weightController:
         self.adjust_weights()  # Adjust weights after training the agent
 
 
-    def increase_weight(self, answer):
+    def increase_target_weight(self, answer):
         for entry in self.vector_db:
             if answer in entry["input"]:
                 ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
@@ -159,7 +160,7 @@ class weightController:
                 input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight 
 
                 label = np.zeros(20)
-                target = int(min((sum(weight)+1),20))
+                target = int(min((sum(weight)+4),20))
                 label[0:target]=1
                 self.Agent.next_state(input_to_agent, label,unsequenced=True)
                 self.Agent.reset_state()

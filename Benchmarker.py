@@ -53,11 +53,10 @@ for ex in dataset.select(range(200)):
 
 def run_eval(num_trials_array = []):
     metrics_array = []
-    random.shuffle(questions_answers)
+   # random.shuffle(questions_answers)
     for k, num_trials in enumerate(num_trials_array):
+        rag = ragSystem(vec, activeThresholdTrueFalse=False)
         rag.wC.reset_weights()
-
-
         ranks = []
 
         for i, questions_answer in enumerate(questions_answers[:num_trials]):
@@ -72,7 +71,7 @@ def run_eval(num_trials_array = []):
             no_response = True
 
             if return_array != "No relevant information found.":
-                for idx, (key, dist) in enumerate(return_array[:3]):
+                for idx, (key, dist) in enumerate(return_array):
                     if answer in key:
                         matched_key = key
                         matched_dist = dist
@@ -92,7 +91,9 @@ def run_eval(num_trials_array = []):
                 rag.wC.train_agent("pos", False, matched_key, matched_dist, matched_index, rag.ActThresh)
             else:
                 print("Faliure of RAG sys query: ", question, " ra: ", return_array, " answer: ", answer)
-                rag.wC.increase_weight(answer)
+                rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
+                rag.wC.increase_target_weight(answer)
+                ranks.append(None)
 
 
             print("Question number:", i)
@@ -105,7 +106,7 @@ def run_eval(num_trials_array = []):
 
 if __name__ == "__main__":
     print("Running EVAL")
-    metrics_array = run_eval(num_trials_array=[120])
+    metrics_array = run_eval(num_trials_array=[30])
     print("Finished")
     
     print("Metrics: ", metrics_array)
