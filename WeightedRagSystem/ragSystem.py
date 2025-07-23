@@ -9,7 +9,7 @@ class ragSystem:
     def __init__(self, vectorizer, activeThresholdTrueFalse=True):
         self.wC = weightController(vectorizer)
         self.vectorizer = vectorizer
-        self.vector_db = vectorizer.cache
+        self.vector_db = vectorizer.vectorDB
         self.activeThresholdTrueFalse = activeThresholdTrueFalse
 
         self.ActThresh = activeThreshold(self.activeThresholdTrueFalse)
