@@ -52,7 +52,9 @@ def run_eval(num_trials_array = []):
         
         rag = ragSystem(vec, activeThresholdTrueFalse=False)
         rag.wC.reset_weights()
-        questions_answers =[]
+        for entry in rag.vector_db:
+            print(entry["weight"])
+        questions_answers = []
         for ex in dataset.select(range(200)):
             q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
             questions_answers.append([q, a])
@@ -85,8 +87,8 @@ def run_eval(num_trials_array = []):
                             ranks.append(idx)
                     # print(f"✔ Match found: '{key}' (dist={dist:.4f})")
                     else:                
-                        if (idx ==0 or idx ==1) and dist < 0.15: # if it is top 1 or 2 and incorrect then the weight is too large
-                            print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
+                        if (idx ==0 or idx ==1) and dist < 0.3: # if it is top 1 or 2 and incorrect then the weight is too large
+                            print(f"Training: label=neg, no_response=False, key={key}, answer:{answer}, dist={dist}")
                             rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)   
 
             if matched_key and matched_dist:

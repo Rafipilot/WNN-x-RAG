@@ -14,10 +14,6 @@ class weightController:
         self.Arch = ao.Arch(arch_i=[10,4,4], arch_z=[20]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
         self.Agent = ao.Agent(Arch=self.Arch)
         self.em = be.binaryEmbeddings(openai_api_key=openai_key, numberBinaryDigits=10)
-        Label = np.zeros(20)
-        Label[0:16] = 1 # -> 0.8
-        Label = np.flip(Label)
-        self.Agent.next_state(np.zeros(18), LABEL=Label)
         self.adjust_weights()
 
 
@@ -28,6 +24,7 @@ class weightController:
         binary = np.zeros(20)
         binary[0:num_ones] = 1
         binary = np.flip(binary)
+        print("integer: ", interger, " to binary: ", binary)
         return binary
     
     def convert_int_to_binary(self, integer):
@@ -81,7 +78,7 @@ class weightController:
             self.most_recent_inputs.append(input_to_agent)
 
             new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent, unsequenced=True))
-            self.Agent.reset_state()
+            #self.Agent.reset_state()
 
             entry["weight"] = new_weight
 
@@ -96,32 +93,23 @@ class weightController:
         # print("len mri: ", len(self.most_recent_input))
         #if noResponse == False:
         if noResponse == False:
-            recent_vec = None
-            for i, value in enumerate(self.vector_db):
-                if value["input"] == key:
-                    recent_vec = self.most_recent_inputs[i]
-                    break
-            if not recent_vec:
-                warnings.warn("No recent vec ERROR")
-                print("vect db: ", [item["input"] for item in self.vector_db])
-                print("key: ", key)
-    
-            weighted = recent_vec[-20:]
-            print("Weight: ", weighted)
-            weight = int(sum(weighted))
+            recent_vec = self.create_input_to_agent(self.vector_db[index])
+            weight = int(self.vector_db[index]["weight"]*20)
+            print("Weight: ", weight)
             label = np.zeros(20)
             if type == "pos":
-                for i in range(min(weight+8, 20)):
+                for i in range(min(weight+4, 20)):
                     label[i] = 1
+                print("increase weight from", weight, " to ", label)
             else:
-                for i in range(max(weight-1, 1)):
+                for i in range(max(weight-1, 0)):
                     label[i] = 1
                 
                 self.vectorizer.incrementNumberFailures(key)
-                print("negative training: ", weighted, " to ", label)
+                print("negative training: ", weight, " to ", label)
             label = np.flip(label)
             self.Agent.next_state(INPUT=recent_vec, LABEL=label, unsequenced=False)
-            self.Agent.reset_state()
+            #self.Agent.reset_state()
             
             actThresh.trainAgent(type, noResponse, min_dist, index)
 
@@ -129,7 +117,7 @@ class weightController:
         elif noResponse == True and type == "pos":
             for INPUT in self.most_recent_inputs:
                 self.Agent.next_state(INPUT, Cpos= True, unsequenced=True)
-                self.Agent.reset_state()
+                #self.Agent.reset_state()
         elif noResponse == True and type == "neg":
             for INPUT, entry in zip(self.most_recent_inputs, self.vector_db):
                 # Increase the weight of everything incrementally
@@ -137,7 +125,7 @@ class weightController:
                 target_weight_binary = self.convert_to_binary(target_weight)
 
                 self.Agent.next_state(INPUT, target_weight_binary, unsequenced=True)
-                self.Agent.reset_state()
+                #self.Agent.reset_state()
         else:
             warnings.warn("Invalid Response raising error")
             raise ValueError 
@@ -151,11 +139,13 @@ class weightController:
                 weight = entry["weight"] 
 
                 label = np.zeros(20)
-                target = int(min((int(weight*20)+12),20))
+                
+                target = int(min((int(weight*20)+4),20))
                 label[0:target]=1
                 label = np.flip(label)
+                print("increase weight from", weight, " to ", label)
                 self.Agent.next_state(input_to_agent, label,unsequenced=True)
-                self.Agent.reset_state()
+                #self.Agent.reset_state()
         
 
     def reset_weights(self):
