@@ -44,11 +44,14 @@ def compute_metrics(ranks, ks=(1,3)):
     return metrics
 
 def run_eval(num_trials_array = []):
+    
     metrics_array = []
     #random.shuffle(questions_answers)
     for k, num_trials in enumerate(num_trials_array):
         vec = vectorizer(openai_api_key=openai_key, vectorDBName="VectorDB.json")
+        
         rag = ragSystem(vec, activeThresholdTrueFalse=False)
+        rag.wC.reset_weights()
         questions_answers =[]
         for ex in dataset.select(range(200)):
             q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
@@ -82,7 +85,7 @@ def run_eval(num_trials_array = []):
                             ranks.append(idx)
                     # print(f"✔ Match found: '{key}' (dist={dist:.4f})")
                     else:                
-                        if (idx ==0 or idx ==1) and dist < 0.35: # if it is top 1 or 2 and incorrect then the weight is too large
+                        if (idx ==0 or idx ==1) and dist < 0.15: # if it is top 1 or 2 and incorrect then the weight is too large
                             print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
                             rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)   
 
@@ -94,6 +97,7 @@ def run_eval(num_trials_array = []):
                 #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
                 rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
                 ranks.append(None)
+            rag.wC.adjust_weights() # Adjust weights after training the agent
 
 
             print("Question number:", i)
@@ -106,7 +110,7 @@ def run_eval(num_trials_array = []):
 
 if __name__ == "__main__":
     print("Running EVAL")
-    metrics_array = run_eval(num_trials_array=[30,60,90,120])
+    metrics_array = run_eval(num_trials_array=[30])
     print("Finished")
     
     print("Metrics: ", metrics_array)

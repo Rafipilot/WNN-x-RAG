@@ -36,10 +36,10 @@ class ragSystem:
         # 1) Compute weighted distances
         return_array = []
         entries = []
-        self.wC.adjust_weights()
+        self.wC.adjust_weights
         for entry in self.vector_db:
             dist = self.find_distance_embedding(input_embedding, entry["embedding"])
-            weighted = dist / entry.get("weight", 1.0)
+            weighted = dist / entry["weight"]
             return_array.append((entry["input"], weighted))
             entries.append(entry)
         

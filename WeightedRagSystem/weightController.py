@@ -11,13 +11,15 @@ class weightController:
 
         self.vectorizer = vectorizer
         self.vector_db = vectorizer.vectorDB
-        self.Arch = ao.Arch(arch_i=[10,4,4, 20], arch_z=[20]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
+        self.Arch = ao.Arch(arch_i=[10,4,4], arch_z=[20]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
         self.Agent = ao.Agent(Arch=self.Arch)
         self.em = be.binaryEmbeddings(openai_api_key=openai_key, numberBinaryDigits=10)
         Label = np.zeros(20)
         Label[0:16] = 1 # -> 0.8
         Label = np.flip(Label)
-        self.Agent.next_state(np.zeros(38), LABEL=Label)
+        self.Agent.next_state(np.zeros(18), LABEL=Label)
+        self.adjust_weights()
+
 
 
     def convert_to_binary(self, interger):
@@ -55,6 +57,19 @@ class weightController:
         integer = num_ones/20
             
         return integer
+    
+    def create_input_to_agent(self, entry):
+        ID =  [int(bit) for bit in f"{entry['uniqueID']:010b}"]
+
+        number_of_retrievals = entry["numberOfRetrievals"]
+        number_of_retrievals_binary = self.convert_int_to_binary(number_of_retrievals)
+
+        numFailures = entry["numberFailures"]
+        numFailuresBinary = self.convert_int_to_binary(numFailures)
+
+        input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary
+
+        return input_to_agent
 
     def adjust_weights(self):
         self.most_recent_inputs = []
@@ -62,19 +77,7 @@ class weightController:
             
             #binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
 
-            ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
-
-            number_of_retrievals = entry["numberOfRetrievals"]
-            number_of_retrievals_binary = self.convert_int_to_binary(number_of_retrievals)
-
-            weight = entry["weight"]
-            weight = self.convert_to_binary(weight).tolist()
-
-            numFailures = entry["numberFailures"]
-            numFailuresBinary = self.convert_int_to_binary(numFailures)
-
-            input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight
-
+            input_to_agent = self.create_input_to_agent(entry)
             self.most_recent_inputs.append(input_to_agent)
 
             new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent, unsequenced=True))
@@ -108,7 +111,7 @@ class weightController:
             weight = int(sum(weighted))
             label = np.zeros(20)
             if type == "pos":
-                for i in range(min(weight+3, 20)):
+                for i in range(min(weight+8, 20)):
                     label[i] = 1
             else:
                 for i in range(max(weight-1, 1)):
@@ -138,34 +141,24 @@ class weightController:
         else:
             warnings.warn("Invalid Response raising error")
             raise ValueError 
-            
-        self.adjust_weights()  # Adjust weights after training the agent
+
 
 
     def increase_target_weight(self, answer):
         for entry in self.vector_db:
             if answer in entry["input"]:
-                ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
-
-                number_of_retrievals = entry["numberOfRetrievals"]
-                number_of_retrievals_binary = self.convert_int_to_binary(number_of_retrievals)
-
-                weight = entry["weight"]
-                weight = self.convert_to_binary(weight).tolist()
-
-                numFailures = entry["numberFailures"]
-                numFailuresBinary = self.convert_int_to_binary(numFailures)
-
-                input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight 
+                input_to_agent = self.create_input_to_agent(entry)
+                weight = entry["weight"] 
 
                 label = np.zeros(20)
-                target = int(min((sum(weight)+5),20))
+                target = int(min((int(weight*20)+12),20))
                 label[0:target]=1
                 label = np.flip(label)
                 self.Agent.next_state(input_to_agent, label,unsequenced=True)
                 self.Agent.reset_state()
+        
 
     def reset_weights(self):
         for entry in self.vector_db:
-            entry["weight"] = 0.8
+            entry["weight"] = 0.9
         self.vectorizer.save_vectorDB()
