@@ -94,6 +94,7 @@ def run_eval(num_trials_array = []):
                 #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
                 rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
                 ranks.append(None)
+            rag.wC.adjust_weights()  # Adjust weights after each training
 
 
             print("Question number:", i)
@@ -106,7 +107,7 @@ def run_eval(num_trials_array = []):
 
 if __name__ == "__main__":
     print("Running EVAL")
-    metrics_array = run_eval(num_trials_array=[30,60,90,120])
+    metrics_array = run_eval(num_trials_array=[60])
     print("Finished")
     
     print("Metrics: ", metrics_array)

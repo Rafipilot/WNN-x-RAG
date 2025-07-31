@@ -20,7 +20,7 @@ class vectorizer:
                 self.vectorDB =  json.load(f)
         else:
             self.vectorDB = []
-        if os.path.exist(self.cache_name):
+        if os.path.exists(self.cache_name):
             with open(self.cache_name, "r") as f:
                 self.cache = json.load(f)
         else:
@@ -46,7 +46,7 @@ class vectorizer:
         new_entry = {
             "input": input,
             "embedding": embedding,
-            "weight": 0.8,  # A placeholder for the iconic trainable weight
+            "weight": 0.8,  
             "numberOfRetrievals": 0,
             "numberFailures": 0,
             "uniqueID": len(self.vectorDB) + 1  # Unique identifier for the entry
@@ -57,8 +57,8 @@ class vectorizer:
     
     def addToCache(self, input, embedding):
         for entry in self.cache:
-            if entry["input"] == input:
-                return entry["embedding"]
+            if entry == input:
+                return self.cache[entry]
         self.cache[input] = embedding
     
     def incrementNumberFailures(self, input):

@@ -4,6 +4,7 @@ from sklearn.metrics.pairwise import cosine_similarity  # to calculate distances
 import numpy as np
 from WeightedRagSystem.weightController import weightController
 from WeightedRagSystem.activeThreshold import activeThreshold
+import math
         
 class ragSystem:
     def __init__(self, vectorizer, activeThresholdTrueFalse=True):
@@ -39,7 +40,12 @@ class ragSystem:
         self.wC.adjust_weights()
         for entry in self.vector_db:
             dist = self.find_distance_embedding(input_embedding, entry["embedding"])
-            weighted = dist / entry.get("weight", 1.0)
+            α = 1      # distance‐scale hyperparameter
+            β = 0.25     # weight‐scale hyperparameter
+            eps = 1e-6  
+
+            weighted = α * dist - β * math.log(entry["weight"] + eps) 
+
             return_array.append((entry["input"], weighted))
             entries.append(entry)
         

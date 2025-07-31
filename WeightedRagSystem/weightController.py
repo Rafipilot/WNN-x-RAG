@@ -138,8 +138,6 @@ class weightController:
         else:
             warnings.warn("Invalid Response raising error")
             raise ValueError 
-            
-        self.adjust_weights()  # Adjust weights after training the agent
 
 
     def increase_target_weight(self, answer):
