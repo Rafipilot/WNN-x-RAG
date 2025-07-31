@@ -40,7 +40,7 @@ class ragSystem:
         self.wC.adjust_weights()
         for entry in self.vector_db:
             dist = self.find_distance_embedding(input_embedding, entry["embedding"])
-            α = 1      # distance‐scale hyperparameter
+            α = 0.5      # distance‐scale hyperparameter
             β = 0.25     # weight‐scale hyperparameter
             eps = 1e-6  
 

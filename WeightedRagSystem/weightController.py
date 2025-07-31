@@ -26,23 +26,38 @@ class weightController:
         binary = np.zeros(20)
         binary[0:num_ones] = 1
         binary = np.flip(binary)
+        binary = binary.tolist()
         return binary
     
-    def convert_int_to_binary(self, integer):
+    def convert_int_to_binary(self, integer, num_retrievals=False, num_failures=False): # scalable method to encode int to binary
 
-        if integer <= 10:
-            binary = [0, 0, 0, 0]
-        elif integer <=25:
-            binary = [0, 0, 0, 1]
-        elif integer <=40:
-            binary = [0, 0, 1, 1]
-        elif integer <=60:
-            binary = [0, 1, 1, 1]
-        elif integer >=61:
-            binary = [1, 1, 1, 1]
+        if num_retrievals and num_failures:
+            raise ValueError("error.")
+        elif num_retrievals:
+            search = "numberOfRetrievals"
+        elif num_failures:
+            search = "numberFailures"
         else:
-            print("error: ", integer)
+            warnings.warn("Invalid search type for convert_int_to_binary")
+            raise ValueError("Must specify either num_retrievals or num_failures.")
+
+        if not self.vector_db:
+            raise ValueError("vector_db is empty.")
+
+        max_val = max(int(entry[search]) for entry in self.vector_db)
+        
+        if max_val == 0:
+            return [0, 0, 0, 0]
+
+        # Scale to 0–3
+        scaled = round((integer / max_val) * 3)
+        scaled = min(3, max(0, scaled))  
+
+        binary = [0, 0, 0, 0]
+        binary[scaled] = 1
+
         return binary
+
 
     
 
@@ -55,6 +70,21 @@ class weightController:
         integer = num_ones/20
             
         return integer
+    
+    def create_input_to_agent(self, entry):
+        ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
+
+        number_of_retrievals = entry["numberOfRetrievals"]
+        number_of_retrievals_binary = self.convert_int_to_binary(number_of_retrievals, num_retrievals=True)
+
+        weight = entry["weight"]
+        weight = self.convert_to_binary(weight)
+
+        numFailures = entry["numberFailures"]
+        numFailuresBinary = self.convert_int_to_binary(numFailures, num_failures=True)
+
+        input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight
+        return input_to_agent
 
     def adjust_weights(self):
         self.most_recent_inputs = []
@@ -62,18 +92,7 @@ class weightController:
             
             #binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
 
-            ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
-
-            number_of_retrievals = entry["numberOfRetrievals"]
-            number_of_retrievals_binary = self.convert_int_to_binary(number_of_retrievals)
-
-            weight = entry["weight"]
-            weight = self.convert_to_binary(weight).tolist()
-
-            numFailures = entry["numberFailures"]
-            numFailuresBinary = self.convert_int_to_binary(numFailures)
-
-            input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight
+            input_to_agent = self.create_input_to_agent(entry)
 
             self.most_recent_inputs.append(input_to_agent)
 
@@ -145,16 +164,9 @@ class weightController:
             if answer in entry["input"]:
                 ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
 
-                number_of_retrievals = entry["numberOfRetrievals"]
-                number_of_retrievals_binary = self.convert_int_to_binary(number_of_retrievals)
-
+                input_to_agent = self.create_input_to_agent(entry)
                 weight = entry["weight"]
-                weight = self.convert_to_binary(weight).tolist()
-
-                numFailures = entry["numberFailures"]
-                numFailuresBinary = self.convert_int_to_binary(numFailures)
-
-                input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight 
+                weight = self.convert_to_binary(weight)
 
                 label = np.zeros(20)
                 target = int(min((sum(weight)+5),20))
