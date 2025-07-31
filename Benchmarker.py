@@ -6,6 +6,7 @@ from WeightedRagSystem.ragSystem import ragSystem
 from config import openai_key
 import random
 import numpy as np
+from datetime import datetime
 
 random.seed(42)
 np.random.seed(42)
@@ -60,6 +61,8 @@ def run_eval(num_trials_array = []):
         ranks = []
 
         for i, questions_answer in enumerate(questions_answers[:num_trials]):
+            print("Question number:", i)
+            now = datetime.now()
             question = questions_answer[0]
             answer = questions_answer[1]
             emb = vec.get_embedding(question)
@@ -94,10 +97,10 @@ def run_eval(num_trials_array = []):
                 #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
                 rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
                 ranks.append(None)
-            rag.wC.adjust_weights()  # Adjust weights after each training
+            #rag.wC.adjust_weights()  # Adjust weights after each training
+            print("Time taken for query: ", datetime.now() - now)
 
-
-            print("Question number:", i)
+            
 
         metrics = compute_metrics(ranks)
         metrics_array.append(metrics)
