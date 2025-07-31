@@ -106,7 +106,7 @@ def run_eval(num_trials_array = []):
 
 if __name__ == "__main__":
     print("Running EVAL")
-    metrics_array = run_eval(num_trials_array=[30])
+    metrics_array = run_eval(num_trials_array=[60])
     print("Finished")
     
     print("Metrics: ", metrics_array)
