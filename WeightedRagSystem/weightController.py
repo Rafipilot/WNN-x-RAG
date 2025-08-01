@@ -7,7 +7,7 @@ import numpy as np
 import warnings
 
 class weightController:
-    def __init__(self, vectorizer):
+    def __init__(self, vectorizer, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1):
 
         self.vectorizer = vectorizer
         self.vector_db = vectorizer.vectorDB
@@ -18,6 +18,9 @@ class weightController:
         Label[0:16] = 1 # -> 0.8
         Label = np.flip(Label)
         self.Agent.next_state(np.zeros(38), LABEL=Label)
+        self.increase_target_weight_amount = int(increase_target_weight_amount)
+        self.increase_weight_if_correct = int(increase_weight_if_correct)
+        self.decrease_weight_if_incorrect = int(decrease_weight_if_incorrect)
 
 
     def convert_to_binary(self, interger):
@@ -127,10 +130,10 @@ class weightController:
             weight = int(sum(weighted))
             label = np.zeros(20)
             if type == "pos":
-                for i in range(min(weight+3, 20)):
+                for i in range(min(weight+self.increase_weight_if_correct, 20)):
                     label[i] = 1
             else:
-                for i in range(max(weight-1, 1)):
+                for i in range(max(weight+self.decrease_weight_if_incorrect, 1)):
                     label[i] = 1
                 
                 self.vectorizer.incrementNumberFailures(key)
@@ -169,7 +172,7 @@ class weightController:
                 weight = self.convert_to_binary(weight)
 
                 label = np.zeros(20)
-                target = int(min((sum(weight)+5),20))
+                target = int(min((sum(weight)+self.increase_target_weight_amount),20))
                 label[0:target]=1
                 label = np.flip(label)
                 self.Agent.next_state(input_to_agent, label,unsequenced=True)

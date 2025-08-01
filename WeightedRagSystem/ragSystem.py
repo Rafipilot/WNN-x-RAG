@@ -7,11 +7,14 @@ from WeightedRagSystem.activeThreshold import activeThreshold
 import math
         
 class ragSystem:
-    def __init__(self, vectorizer, activeThresholdTrueFalse=True):
+    def __init__(self, vectorizer, activeThresholdTrueFalse=True, alpha=1, beta=0.25, eps=1e-6, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1):
         self.wC = weightController(vectorizer)
         self.vectorizer = vectorizer
         self.vector_db = vectorizer.vectorDB
         self.activeThresholdTrueFalse = activeThresholdTrueFalse
+        self.alpha = alpha
+        self.beta = beta
+        self.eps = eps
 
         self.ActThresh = activeThreshold(self.activeThresholdTrueFalse)
 
@@ -40,7 +43,7 @@ class ragSystem:
         self.wC.adjust_weights()
         for entry in self.vector_db:
             dist = self.find_distance_embedding(input_embedding, entry["embedding"])
-            α = 0.5      # distance‐scale hyperparameter
+            α = 1      # distance‐scale hyperparameter
             β = 0.25     # weight‐scale hyperparameter
             eps = 1e-6  
 

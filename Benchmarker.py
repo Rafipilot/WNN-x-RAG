@@ -31,10 +31,18 @@ def sentence_chunker(text, chunk_size=300):
         chunks.append(current_chunk.strip())
     return chunks#
 
-def compute_metrics(ranks, ks=(1,3)):
+def compute_metrics(ranks, ks=(1,3), alpha=1, beta=0.25, eps=1e-6, increase_target_weight_amount=5,
+                    increase_weight_if_correct=3, decrease_weight_if_incorrect=-1):
     n = len(ranks)
     metrics = {}
     metrics["Number"] = n
+    metrics["Alpha"] = alpha
+    metrics["Beta"] = beta
+    metrics["Epsilon"] = eps
+    metrics["Increase Target Weight Amount"] = increase_target_weight_amount
+    metrics["Increase Weight If Correct"] = increase_weight_if_correct
+    metrics["Decrease Weight If Incorrect"] = decrease_weight_if_incorrect
+
     # Hit@k
     for k in ks:
         hits = sum(1 for r in ranks if (r is not None and r < k))
@@ -44,12 +52,21 @@ def compute_metrics(ranks, ks=(1,3)):
     metrics["MRR"] = sum(reciprocal_ranks) / n
     return metrics
 
-def run_eval(num_trials_array = []):
+def run_eval(num_trials_array = [30], alpha=[1], beta=[0.25], eps=[1e-6], increase_target_weight_amount=[5], increase_weight_if_correct=[3], decrease_weight_if_incorrect=[-1]):
     metrics_array = []
     #random.shuffle(questions_answers)
     for k, num_trials in enumerate(num_trials_array):
+        alpha = alpha[k]
+        beta = beta[k]
+        eps = eps[k]
+        increase_target_weight_amount = increase_target_weight_amount[k]
+        increase_weight_if_correct = increase_weight_if_correct[k]
+        decrease_weight_if_incorrect = decrease_weight_if_incorrect[k]
         vec = vectorizer(openai_api_key=openai_key, vectorDBName="VectorDB.json")
-        rag = ragSystem(vec, activeThresholdTrueFalse=False)
+        rag = ragSystem(vec, activeThresholdTrueFalse=False, alpha=alpha, beta=beta, eps=eps,
+                        increase_target_weight_amount=increase_target_weight_amount,
+                        increase_weight_if_correct=increase_weight_if_correct,
+                        decrease_weight_if_incorrect=decrease_weight_if_incorrect)
         questions_answers =[]
         for ex in dataset.select(range(200)):
             q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
@@ -102,7 +119,9 @@ def run_eval(num_trials_array = []):
 
             
 
-        metrics = compute_metrics(ranks)
+        metrics = compute_metrics(ranks, alpha=alpha, beta=beta, eps=eps, increase_target_weight_amount=increase_target_weight_amount,
+                                  increase_weight_if_correct=increase_weight_if_correct,
+                                  decrease_weight_if_incorrect=decrease_weight_if_incorrect)
         metrics_array.append(metrics)
         print(metrics)
         print("finished test number: ", k)
@@ -110,7 +129,7 @@ def run_eval(num_trials_array = []):
 
 if __name__ == "__main__":
     print("Running EVAL")
-    metrics_array = run_eval(num_trials_array=[60])
+    metrics_array = run_eval(num_trials_array = [30], alpha=[1], beta=[0.25], eps=[1e-6], increase_target_weight_amount=[5], increase_weight_if_correct=[3], decrease_weight_if_incorrect=[-1])
     print("Finished")
     
     print("Metrics: ", metrics_array)
