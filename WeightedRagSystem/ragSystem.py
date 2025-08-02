@@ -5,12 +5,16 @@ import numpy as np
 from WeightedRagSystem.weightController import weightController
 from WeightedRagSystem.activeThreshold import activeThreshold
 import math
+import random
+
+random.seed(42)
+np.random.seed(42)
         
 class ragSystem:
     def __init__(self, vectorizer, activeThresholdTrueFalse=True, alpha=1, beta=0.25, eps=1e-6, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1):
         self.wC = weightController(vectorizer)
         self.vectorizer = vectorizer
-        self.vector_db = vectorizer.vectorDB
+
         self.activeThresholdTrueFalse = activeThresholdTrueFalse
         self.alpha = alpha
         self.beta = beta
@@ -41,7 +45,7 @@ class ragSystem:
         return_array = []
         entries = []
         self.wC.adjust_weights()
-        for entry in self.vector_db:
+        for entry in self.vectorizer.vectorDB:
             dist = self.find_distance_embedding(input_embedding, entry["embedding"])
             α = 1      # distance‐scale hyperparameter
             β = 0.25     # weight‐scale hyperparameter
@@ -69,7 +73,7 @@ class ragSystem:
             return "No relevant information found.", ["No relevant information found."], []
 
         keys = [inp for inp, i in return_array]
-        for entry in self.vector_db:
+        for entry in self.vectorizer.vectorDB:
             if entry["input"] in keys:
                 entry["numberOfRetrievals"] = entry.get("numberOfRetrievals", 0) + 1
         

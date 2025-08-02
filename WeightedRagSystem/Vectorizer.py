@@ -12,6 +12,7 @@ class vectorizer:
         client = OpenAI(api_key = openai_api_key,)
         self.vectorDBName = vectorDBName
         self.cache_name = cache_name
+        self.snapshot_name = "VectorDB_snapshot.json"
         self.load_VectorDB()
         
     def load_VectorDB(self):
@@ -82,3 +83,21 @@ class vectorizer:
         self.addToCache(input, embedding)
         print("Adding to cache")
         return embedding
+    
+    def _save_snapshot(self):
+        # Internal: save a clean snapshot of the current DB
+        try:
+            with open(self.snapshot_name, "w") as f:
+                json.dump(self.vectorDB, f)
+        except Exception as e:
+            print("error saving snapshot:", e)
+
+    def reset_to_snapshot(self):
+        # Public: restore the DB from the clean snapshot
+        if os.path.exists(self.snapshot_name):
+            with open(self.snapshot_name, "r") as f:
+                self.vectorDB = json.load(f)
+            # Overwrite the working DB file too
+            self.save_vectorDB()
+        else:
+            raise FileNotFoundError(f"Snapshot file '{self.snapshot_name}' not found.")

@@ -1,21 +1,22 @@
-import nltk
-from datasets import load_dataset
 from nltk.tokenize import sent_tokenize
-from WeightedRagSystem.Vectorizer import vectorizer
-from WeightedRagSystem.ragSystem import ragSystem
+import nltk
 from config import openai_key
+
 import random
 import numpy as np
 from datetime import datetime
+import os
+
+from datasets import load_dataset
+os.environ["PYTHONHASHSEED"] = "0"
 
 random.seed(42)
 np.random.seed(42)
 
 nltk.download('punkt')
 
-dataset = load_dataset("squad", split="validation")
 
-questions_answers = []
+
 
 def sentence_chunker(text, chunk_size=300):
     sentences = sent_tokenize(text)
@@ -52,84 +53,130 @@ def compute_metrics(ranks, ks=(1,3), alpha=1, beta=0.25, eps=1e-6, increase_targ
     metrics["MRR"] = sum(reciprocal_ranks) / n
     return metrics
 
-def run_eval(num_trials_array = [30], alpha=[1], beta=[0.25], eps=[1e-6], increase_target_weight_amount=[5], increase_weight_if_correct=[3], decrease_weight_if_incorrect=[-1]):
-    metrics_array = []
-    #random.shuffle(questions_answers)
-    for k, num_trials in enumerate(num_trials_array):
-        alpha = alpha[k]
-        beta = beta[k]
-        eps = eps[k]
-        increase_target_weight_amount = increase_target_weight_amount[k]
-        increase_weight_if_correct = increase_weight_if_correct[k]
-        decrease_weight_if_incorrect = decrease_weight_if_incorrect[k]
-        vec = vectorizer(openai_api_key=openai_key, vectorDBName="VectorDB.json")
-        rag = ragSystem(vec, activeThresholdTrueFalse=False, alpha=alpha, beta=beta, eps=eps,
-                        increase_target_weight_amount=increase_target_weight_amount,
-                        increase_weight_if_correct=increase_weight_if_correct,
-                        decrease_weight_if_incorrect=decrease_weight_if_incorrect)
-        questions_answers =[]
-        for ex in dataset.select(range(200)):
-            q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
-            questions_answers.append([q, a])
-            chunks = sentence_chunker(ctx)
-            for chunk in chunks: # tokanization
-                vec.addToVectorDB(chunk)
+#vec._save_snapshot()  # Save the initial state of the vector DB
+
+def run_eval(
+    num_trials=30,
+    alpha=1,
+    beta=0.25,
+    eps=1e-6,
+    increase_target_weight_amount=5,
+    increase_weight_if_correct=3,
+    decrease_weight_if_incorrect=-1,
+):
+    from WeightedRagSystem.Vectorizer import vectorizer
+    from WeightedRagSystem.ragSystem import ragSystem
+    
+    import random
+    import numpy as np
+    from datetime import datetime
+    import os
+
+    from datasets import load_dataset
+    os.environ["PYTHONHASHSEED"] = "0"
+
+    random.seed(42)
+    np.random.seed(42)
+    vec = vectorizer(openai_api_key=openai_key, vectorDBName="VectorDB.json")
+    questions_answers =[]
+    dataset = load_dataset("squad", split="validation")
+    for ex in dataset.select(range(200)):
+        q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
+        questions_answers.append([q, a])
+        chunks = sentence_chunker(ctx)
+        for chunk in chunks: # tokanization
+            vec.addToVectorDB(chunk)
+
+    
+    #vec = vectorizer(openai_api_key=openai_key, vectorDBName="VectorDB.json") 
+
+    rag = ragSystem(vec, activeThresholdTrueFalse=False, alpha=alpha, beta=beta, eps=eps,
+                    increase_target_weight_amount=increase_target_weight_amount,
+                    increase_weight_if_correct=increase_weight_if_correct,
+                    decrease_weight_if_incorrect=decrease_weight_if_incorrect) # re init  rag sys
+    
+    rag.wC.vector_db_reset() # There is no other info stored in vectorDB so this resets all of it, so exact equivalent of making new one 
+
+
+    ranks = []
+
+    for i, questions_answer in enumerate(questions_answers[:num_trials]):
+        print("Question number:", i)
+
+        now = datetime.now()
+        question = questions_answer[0]
+        answer = questions_answer[1]
+        emb = vec.get_embedding(question) # this rerieves the embedding from a cache generally
+
+        return_array, keys, min_dists = rag.run_query(emb)
+        #print(f"Query: '{question}' -> Returned keys: {keys}")
+
+        matched_key, matched_dist, matched_index = None, None, None
+        correct_flag = False
+        no_response = True
+
+        if return_array != "No relevant information found.":
+            for idx, (key, dist) in enumerate(return_array):
+                if answer in key:
+                    matched_key = key
+                    matched_dist = dist
+                    no_response = False
+                    if not correct_flag:
+                        correct_flag = True
+                        matched_index = idx
+                        ranks.append(idx)
+                # print(f"✔ Match found: '{key}' (dist={dist:.4f})")
+                else:                
+                    if (idx ==0 or idx ==1) and dist < 0.35: # if it is top 1 or 2 and incorrect then the weight is too large
+                        #print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
+                        rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)   
+
+        if matched_key and matched_dist:
+            #print(f"Training: label=pos, no_response=False, key={matched_key}, dist={matched_dist}")
+            rag.wC.train_agent("pos", False, matched_key, matched_dist, matched_index, rag.ActThresh)
+        else:
+            #print("Faliure of RAG sys query: ", question, " ra: ", return_array, " answer: ", answer)
+            #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
+            rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
+            ranks.append(None)
+        #rag.wC.adjust_weights()  # Adjust weights after each training
+        print("Time taken for query: ", datetime.now() - now)
         
-        ranks = []
 
-        for i, questions_answer in enumerate(questions_answers[:num_trials]):
-            print("Question number:", i)
-            now = datetime.now()
-            question = questions_answer[0]
-            answer = questions_answer[1]
-            emb = vec.get_embedding(question)
-            return_array, keys, min_dists = rag.run_query(emb)
-            #print(f"Query: '{question}' -> Returned keys: {keys}")
+    metrics = compute_metrics(ranks, alpha=alpha, beta=beta, eps=eps, increase_target_weight_amount=increase_target_weight_amount,
+                                increase_weight_if_correct=increase_weight_if_correct,
+                                decrease_weight_if_incorrect=decrease_weight_if_incorrect)
 
-            matched_key, matched_dist, matched_index = None, None, None
-            correct_flag = False
-            no_response = True
+    return metrics
 
-            if return_array != "No relevant information found.":
-                for idx, (key, dist) in enumerate(return_array):
-                    if answer in key:
-                        matched_key = key
-                        matched_dist = dist
-                        no_response = False
-                        if not correct_flag:
-                            correct_flag = True
-                            matched_index = idx
-                            ranks.append(idx)
-                    # print(f"✔ Match found: '{key}' (dist={dist:.4f})")
-                    else:                
-                        if (idx ==0 or idx ==1) and dist < 0.35: # if it is top 1 or 2 and incorrect then the weight is too large
-                            print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
-                            rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)   
+def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1):
+    metrics_array = []
+    for k,num_trials in enumerate(num_trials_array):
+        α = alpha[k] if isinstance(alpha, list) else alpha
+        β = beta[k]   if isinstance(beta, list)  else beta
+        ε = eps[k]    if isinstance(eps, list)   else eps
+        inc_tgt = (increase_target_weight_amount[k]
+                   if isinstance(increase_target_weight_amount, list)
+                   else increase_target_weight_amount)
+        inc_corr = (increase_weight_if_correct[k]
+                    if isinstance(increase_weight_if_correct, list)
+                    else increase_weight_if_correct)
+        dec_incorr = (decrease_weight_if_incorrect[k]
+                      if isinstance(decrease_weight_if_incorrect, list)
+                      else decrease_weight_if_incorrect)
 
-            if matched_key and matched_dist:
-                print(f"Training: label=pos, no_response=False, key={matched_key}, dist={matched_dist}")
-                rag.wC.train_agent("pos", False, matched_key, matched_dist, matched_index, rag.ActThresh)
-            else:
-                print("Faliure of RAG sys query: ", question, " ra: ", return_array, " answer: ", answer)
-                #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
-                rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
-                ranks.append(None)
-            #rag.wC.adjust_weights()  # Adjust weights after each training
-            print("Time taken for query: ", datetime.now() - now)
-
-            
-
-        metrics = compute_metrics(ranks, alpha=alpha, beta=beta, eps=eps, increase_target_weight_amount=increase_target_weight_amount,
-                                  increase_weight_if_correct=increase_weight_if_correct,
-                                  decrease_weight_if_incorrect=decrease_weight_if_incorrect)
+        print(f"\n=== Run {k+1}: α={α}, β={β}, ε={ε}, trials={num_trials} ===")
+        metrics = run_eval(num_trials, alpha=α, beta=β, eps=ε,
+                                 increase_target_weight_amount=inc_tgt,
+                                 increase_weight_if_correct=inc_corr,
+                                 decrease_weight_if_incorrect=dec_incorr)
+        print(f"Metrics for run {k+1}: {metrics}")
         metrics_array.append(metrics)
-        print(metrics)
-        print("finished test number: ", k)
     return metrics_array
 
 if __name__ == "__main__":
     print("Running EVAL")
-    metrics_array = run_eval(num_trials_array = [30], alpha=[1], beta=[0.25], eps=[1e-6], increase_target_weight_amount=[5], increase_weight_if_correct=[3], decrease_weight_if_incorrect=[-1])
+    metrics_array = run_full_eval(num_trials_array = [5,5])
     print("Finished")
     
     print("Metrics: ", metrics_array)

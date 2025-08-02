@@ -6,11 +6,15 @@ import ao_embeddings.binaryEmbeddings as be
 import numpy as np
 import warnings
 
+import random
+random.seed(42)
+np.random.seed(42)
+
 class weightController:
     def __init__(self, vectorizer, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1):
 
         self.vectorizer = vectorizer
-        self.vector_db = vectorizer.vectorDB
+        #self.vector_db = self.vectorizer.vectorDB
         self.Arch = ao.Arch(arch_i=[10,4,4, 20], arch_z=[20]) # Input is condensed embedding, number of retrivals, current weight. Output is the next weight # TODO add a unique identifierS
         self.Agent = ao.Agent(Arch=self.Arch)
         self.em = be.binaryEmbeddings(openai_api_key=openai_key, numberBinaryDigits=10)
@@ -44,10 +48,10 @@ class weightController:
             warnings.warn("Invalid search type for convert_int_to_binary")
             raise ValueError("Must specify either num_retrievals or num_failures.")
 
-        if not self.vector_db:
+        if not self.vectorizer.vectorDB:
             raise ValueError("vector_db is empty.")
 
-        max_val = max(int(entry[search]) for entry in self.vector_db)
+        max_val = max(int(entry[search]) for entry in self.vectorizer.vectorDB)
         
         if max_val == 0:
             return [0, 0, 0, 0]
@@ -91,7 +95,7 @@ class weightController:
 
     def adjust_weights(self):
         self.most_recent_inputs = []
-        for entry in self.vector_db:
+        for entry in self.vectorizer.vectorDB:
             
             #binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
 
@@ -116,13 +120,13 @@ class weightController:
         #if noResponse == False:
         if noResponse == False:
             recent_vec = None
-            for i, value in enumerate(self.vector_db):
+            for i, value in enumerate(self.vectorizer.vectorDB):
                 if value["input"] == key:
                     recent_vec = self.most_recent_inputs[i]
                     break
             if not recent_vec:
                 warnings.warn("No recent vec ERROR")
-                print("vect db: ", [item["input"] for item in self.vector_db])
+                print("vect db: ", [item["input"] for item in self.vectorizer.vectorDB])
                 print("key: ", key)
     
             weighted = recent_vec[-20:]
@@ -150,7 +154,7 @@ class weightController:
                 self.Agent.next_state(INPUT, Cpos= True, unsequenced=True)
                 self.Agent.reset_state()
         elif noResponse == True and type == "neg":
-            for INPUT, entry in zip(self.most_recent_inputs, self.vector_db):
+            for INPUT, entry in zip(self.most_recent_inputs, self.vectorizer.vectorDB):
                 # Increase the weight of everything incrementally
                 target_weight = min(entry["weight"]+0.1, 1)
                 target_weight_binary = self.convert_to_binary(target_weight)
@@ -163,7 +167,7 @@ class weightController:
 
 
     def increase_target_weight(self, answer):
-        for entry in self.vector_db:
+        for entry in self.vectorizer.vectorDB:
             if answer in entry["input"]:
                 ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
 
@@ -178,7 +182,10 @@ class weightController:
                 self.Agent.next_state(input_to_agent, label,unsequenced=True)
                 self.Agent.reset_state()
 
-    def reset_weights(self):
-        for entry in self.vector_db:
+    def vector_db_reset(self):
+        for entry in self.vectorizer.vectorDB:
             entry["weight"] = 0.8
+            entry["numberOfRetrievals"] = 0
+            entry["numberFailures"] = 0
         self.vectorizer.save_vectorDB()
+ 

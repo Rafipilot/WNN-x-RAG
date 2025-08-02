@@ -4,6 +4,10 @@ import ao_core as ao
 from config import openai_key
 import ao_embeddings.binaryEmbeddings as be
 import numpy as np
+import random
+
+random.seed(42)
+np.random.seed(42)
 
 class activeThreshold:
     def __init__(self, TrueFalse):
