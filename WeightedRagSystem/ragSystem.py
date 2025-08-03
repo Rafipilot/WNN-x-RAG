@@ -47,11 +47,11 @@ class ragSystem:
         self.wC.adjust_weights()
         for entry in self.vectorizer.vectorDB:
             dist = self.find_distance_embedding(input_embedding, entry["embedding"])
-            α = 1      # distance‐scale hyperparameter
-            β = 0.25     # weight‐scale hyperparameter
-            eps = 1e-6  
+            # α = 1      # distance‐scale hyperparameter
+            # β = 0.25     # weight‐scale hyperparameter
+            # eps = 1e-6  
 
-            weighted = α * dist - β * math.log(entry["weight"] + eps) 
+            weighted = self.alpha * dist - self.beta * math.log(entry["weight"] + self.eps) 
 
             return_array.append((entry["input"], weighted))
             entries.append(entry)
