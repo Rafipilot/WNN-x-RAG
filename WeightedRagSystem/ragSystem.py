@@ -44,7 +44,7 @@ class ragSystem:
         # 1) Compute weighted distances
         return_array = []
         entries = []
-        self.wC.adjust_weights()
+        #self.wC.adjust_weights()
         for entry in self.vectorizer.vectorDB:
             dist = self.find_distance_embedding(input_embedding, entry["embedding"])
             # α = 1      # distance‐scale hyperparameter
@@ -73,9 +73,13 @@ class ragSystem:
             return "No relevant information found.", ["No relevant information found."], []
 
         keys = [inp for inp, i in return_array]
+        chunkIDs=[]
         for entry in self.vectorizer.vectorDB:
             if entry["input"] in keys:
+                #print("entry: ", entry)
                 entry["numberOfRetrievals"] = entry.get("numberOfRetrievals", 0) + 1
-        
+                chunkID = entry["chunkID"]
+                chunkIDs.append(chunkID)
+        chunkIDs = set(chunkIDs)
         min_dists = [dist for _, dist in return_array]
-        return return_array, keys, min_dists
+        return return_array, keys, min_dists, chunkIDs

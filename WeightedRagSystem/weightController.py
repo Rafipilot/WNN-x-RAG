@@ -93,23 +93,23 @@ class weightController:
         input_to_agent = ID + number_of_retrievals_binary + numFailuresBinary + weight
         return input_to_agent
 
-    def adjust_weights(self):
+    def adjust_weights(self, chunkIDs=[], all=False):
         self.most_recent_inputs = []
         for entry in self.vectorizer.vectorDB:
-            
-            #binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
-
             input_to_agent = self.create_input_to_agent(entry)
 
             self.most_recent_inputs.append(input_to_agent)
+            #binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
+            if entry["chunkID"] in chunkIDs or all==True:
 
-            new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent, unsequenced=True))
-            self.Agent.reset_state()
 
-            entry["weight"] = new_weight
+                new_weight = self.convert_to_int(self.Agent.next_state(input_to_agent, unsequenced=True))
+                self.Agent.reset_state()
 
-            # Save the updated vector database
-            self.vectorizer.save_vectorDB()
+                entry["weight"] = new_weight
+
+                # Save the updated vector database
+                self.vectorizer.save_vectorDB()
 
             
     def train_agent(self, type, noResponse, key,  min_dist, index, actThresh):

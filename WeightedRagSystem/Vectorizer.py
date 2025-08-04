@@ -36,7 +36,7 @@ class vectorizer:
         except Exception as e:
             print("error: ", e)
 
-    def addToVectorDB(self, input):
+    def addToVectorDB(self, input, chunkID):
         for entry in self.vectorDB:
             if entry["input"] == input:
                 return entry["embedding"]
@@ -50,7 +50,8 @@ class vectorizer:
             "weight": 0.8,  
             "numberOfRetrievals": 0,
             "numberFailures": 0,
-            "uniqueID": len(self.vectorDB) + 1  # Unique identifier for the entry
+            "uniqueID": len(self.vectorDB) + 1,  # Unique identifier for the entry
+            "chunkID": chunkID
         }
         self.vectorDB.append(new_entry)
         self.save_vectorDB()

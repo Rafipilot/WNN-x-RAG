@@ -80,12 +80,18 @@ def run_eval(
     vec = vectorizer(openai_api_key=openai_key, vectorDBName="VectorDB.json")
     questions_answers =[]
     dataset = load_dataset("squad", split="validation")
+
+    previous_ctx=None
+    chunkID=0
     for ex in dataset.select(range(200)):
         q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
         questions_answers.append([q, a])
         chunks = sentence_chunker(ctx)
+        if previous_ctx !=ctx:
+            chunkID+=1
+            previous_ctx=ctx
         for chunk in chunks: # tokanization
-            vec.addToVectorDB(chunk)
+            vec.addToVectorDB(chunk, chunkID)
 
     
     #vec = vectorizer(openai_api_key=openai_key, vectorDBName="VectorDB.json") 
@@ -99,7 +105,7 @@ def run_eval(
 
 
     ranks = []
-
+    rag.wC.adjust_weights(all=True) 
     for i, questions_answer in enumerate(questions_answers[:num_trials]):
         print("Question number:", i)
 
@@ -108,7 +114,7 @@ def run_eval(
         answer = questions_answer[1]
         emb = vec.get_embedding(question) # this rerieves the embedding from a cache generally
 
-        return_array, keys, min_dists = rag.run_query(emb)
+        return_array, keys, min_dists, chunkIDs = rag.run_query(emb)
         #print(f"Query: '{question}' -> Returned keys: {keys}")
 
         matched_key, matched_dist, matched_index = None, None, None
@@ -139,7 +145,7 @@ def run_eval(
             #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
             rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
             ranks.append(None)
-        #rag.wC.adjust_weights()  # Adjust weights after each training
+        rag.wC.adjust_weights(chunkID)  # Adjust weights after each training
         print("Time taken for query: ", datetime.now() - now)
         
 
@@ -176,7 +182,7 @@ def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_targe
 
 if __name__ == "__main__":
     print("Running EVAL")
-    metrics_array = run_full_eval(num_trials_array = [5,5])
+    metrics_array = run_full_eval(num_trials_array = [30])
     print("Finished")
     
     print("Metrics: ", metrics_array)
