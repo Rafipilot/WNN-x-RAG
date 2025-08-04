@@ -145,7 +145,7 @@ def run_eval(
             #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
             rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
             ranks.append(None)
-        rag.wC.adjust_weights(chunkID)  # Adjust weights after each training
+        rag.wC.adjust_weights(chunkIDs)  # Adjust weights after each training
         print("Time taken for query: ", datetime.now() - now)
         
 
@@ -182,7 +182,23 @@ def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_targe
 
 if __name__ == "__main__":
     print("Running EVAL")
-    metrics_array = run_full_eval(num_trials_array = [30])
+    alpha_values = [1.0, 0.8, 0.6, 0.4, 0.2]
+    beta_values  = [1.0, 0.8, 0.6, 0.4, 0.2]
+
+    # Number of trials per combination
+    num_trials_array = [120] * (len(alpha_values) * len(beta_values))
+
+    # Create full alpha-beta grid
+    alphas = [a for a in alpha_values for _ in beta_values]
+    betas  = [b for _ in alpha_values for b in beta_values]
+
+    # Run evaluation
+    metrics_array = run_full_eval(
+        num_trials_array=num_trials_array,
+        alpha=alphas,
+        beta=betas
+    )
+
     print("Finished")
     
     print("Metrics: ", metrics_array)
