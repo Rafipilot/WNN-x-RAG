@@ -3,6 +3,7 @@ from openai import OpenAI
 import openai
 import os
 import json
+from datetime import datetime
 
 
 class vectorizer:
@@ -19,8 +20,15 @@ class vectorizer:
         if os.path.exists(self.vectorDBName):
             with open(self.vectorDBName, "r") as f:
                 self.vectorDB =  json.load(f)
+            
         else:
             self.vectorDB = []
+
+        # This index map helps to reduce time to do lookups to the vectorDB
+        self.index_map = {}
+        for i, entry in enumerate(self.vectorDB):
+            self.index_map.update({entry["input"]: i})
+
         if os.path.exists(self.cache_name):
             with open(self.cache_name, "r") as f:
                 self.cache = json.load(f)
@@ -40,6 +48,8 @@ class vectorizer:
         for entry in self.vectorDB:
             if entry["input"] == input:
                 return entry["embedding"]
+            
+        self.index_map.update({input:len(self.vectorDB)})
         
         print("adding to vector DB")
         embedding = self.get_embedding(input)
@@ -54,7 +64,7 @@ class vectorizer:
             "chunkID": chunkID
         }
         self.vectorDB.append(new_entry)
-        self.save_vectorDB()
+        #self.save_vectorDB()
         return embedding
     
     def addToCache(self, input, embedding):
@@ -64,11 +74,11 @@ class vectorizer:
         self.cache[input] = embedding
     
     def incrementNumberFailures(self, input):
-        for i,entry in enumerate(self.vectorDB):
-            if entry["input"] == input:
-                self.vectorDB[i]["numberFailures"] += 1
-                break
-        self.save_vectorDB()
+        
+        index = self.index_map[input]
+        self.vectorDB[index]["numberFailures"]+=1
+        #self.save_vectorDB()
+
         
     def get_embedding(self, input):  # to do introduce a caching mechanism for embeddings not in vector db for eval
 

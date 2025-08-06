@@ -5,6 +5,7 @@ from config import openai_key
 import ao_embeddings.binaryEmbeddings as be
 import numpy as np
 import warnings
+from datetime import datetime
 
 import random
 random.seed(42)
@@ -94,11 +95,9 @@ class weightController:
         return input_to_agent
 
     def adjust_weights(self, chunkIDs=[], all=False):
-        self.most_recent_inputs = []
         for entry in self.vectorizer.vectorDB:
             input_to_agent = self.create_input_to_agent(entry)
 
-            self.most_recent_inputs.append(input_to_agent)
             #binary_embedding = self.em.embeddingToBinary(entry["embedding"]) # may be better to just us a unquie identifier instead of a condensed embedding
             if entry["chunkID"] in chunkIDs or all==True:
 
@@ -109,26 +108,27 @@ class weightController:
                 entry["weight"] = new_weight
 
                 # Save the updated vector database
-                self.vectorizer.save_vectorDB()
+                #self.vectorizer.save_vectorDB()
 
             
     def train_agent(self, type, noResponse, key,  min_dist, index, actThresh):
         # print("keys: ", keys)
         # print("len keys", len(keys))
-        # print("mri: ", self.most_recent_input)
-        # print("len mri: ", len(self.most_recent_input))
+
         #if noResponse == False:
         if noResponse == False:
-            recent_vec = None
-            for i, value in enumerate(self.vectorizer.vectorDB):
-                if value["input"] == key:
-                    recent_vec = self.most_recent_inputs[i]
+            recent_vec = None#
+            now2 = datetime.now()
+            for i, entry in enumerate(self.vectorizer.vectorDB):
+                if entry["input"] == key:
+                    recent_vec = self.create_input_to_agent(entry)
                     break
+            print("time to loop through to find key: ", datetime.now()- now2)
             if not recent_vec:
                 warnings.warn("No recent vec ERROR")
                 print("vect db: ", [item["input"] for item in self.vectorizer.vectorDB])
                 print("key: ", key)
-    
+            now3 = datetime.now()
             weighted = recent_vec[-20:]
             print("Weight: ", weighted)
             weight = int(sum(weighted))
@@ -139,26 +139,32 @@ class weightController:
             else:
                 for i in range(max(weight+self.decrease_weight_if_incorrect, 1)):
                     label[i] = 1
-                
+                now5= datetime.now()
                 self.vectorizer.incrementNumberFailures(key)
+                print("time for increment faliures: ", datetime.now()- now5)
                 print("negative training: ", weighted, " to ", label)
+            print("time to increment and time to create input: ", datetime.now()- now3)
+            now4 = datetime.now()
             label = np.flip(label)
+            
             self.Agent.next_state(INPUT=recent_vec, LABEL=label, unsequenced=False)
             self.Agent.reset_state()
             
             actThresh.trainAgent(type, noResponse, min_dist, index)
+            print("time for next state train ", datetime.now()- now4)
 
             
         elif noResponse == True and type == "pos":
-            for INPUT in self.most_recent_inputs:
+            for entry in self.vectorizer.vectorDB:
+                INPUT = self.create_input_to_agent(entry)
                 self.Agent.next_state(INPUT, Cpos= True, unsequenced=True)
                 self.Agent.reset_state()
         elif noResponse == True and type == "neg":
-            for INPUT, entry in zip(self.most_recent_inputs, self.vectorizer.vectorDB):
+            for entry in self.vectorizer.vectorDB:
                 # Increase the weight of everything incrementally
                 target_weight = min(entry["weight"]+0.1, 1)
                 target_weight_binary = self.convert_to_binary(target_weight)
-
+                INPUT = self.create_input_to_agent(entry)
                 self.Agent.next_state(INPUT, target_weight_binary, unsequenced=True)
                 self.Agent.reset_state()
         else:
@@ -167,7 +173,7 @@ class weightController:
 
 
     def increase_target_weight(self, answer):
-        for entry in self.vectorizer.vectorDB:
+        for i,entry in enumerate(self.vectorizer.vectorDB):
             if answer in entry["input"]:
                 ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
 
@@ -180,6 +186,9 @@ class weightController:
                 label[0:target]=1
                 label = np.flip(label)
                 self.Agent.next_state(input_to_agent, label,unsequenced=True)
+                self.Agent.reset_state()
+
+                self.vectorizer.vectorDB[i]["weight"]=self.convert_to_int(self.Agent.next_state(input_to_agent, unsequenced=True))
                 self.Agent.reset_state()
 
     def vector_db_reset(self):

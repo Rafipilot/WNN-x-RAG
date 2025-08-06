@@ -83,14 +83,43 @@ def run_eval(
 
     previous_ctx=None
     chunkID=0
-    for ex in dataset.select(range(200)):
-        q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
-        questions_answers.append([q, a])
-        chunks = sentence_chunker(ctx)
-        if previous_ctx !=ctx:
-            chunkID+=1
-            previous_ctx=ctx
-        for chunk in chunks: # tokanization
+    subset = dataset.select(range(1000))
+
+    groups = []
+    current_ctx = None
+    current_group = []
+    for ex in subset:
+        ctx = ex["context"]
+        if ctx != current_ctx:
+
+            if current_group:
+                groups.append(current_group)
+            # Start new group
+            current_group = [ex]
+            current_ctx = ctx
+        else:
+            current_group.append(ex)
+
+    if current_group:
+        groups.append(current_group)
+
+    random.shuffle(groups)
+
+    questions_answers = []
+    chunkID = 0
+    for group in groups[:5]:
+
+        for ex in group:
+            q = ex["question"]
+            a = ex["answers"]["text"][0]
+            questions_answers.append([q, a])
+
+
+        chunkID += 1
+    
+        shared_ctx = group[0]["context"]
+        chunks = sentence_chunker(shared_ctx)
+        for chunk in chunks:
             vec.addToVectorDB(chunk, chunkID)
 
     
@@ -105,7 +134,6 @@ def run_eval(
 
 
     ranks = []
-    rag.wC.adjust_weights(all=True) 
     for i, questions_answer in enumerate(questions_answers[:num_trials]):
         print("Question number:", i)
 
@@ -113,7 +141,7 @@ def run_eval(
         question = questions_answer[0]
         answer = questions_answer[1]
         emb = vec.get_embedding(question) # this rerieves the embedding from a cache generally
-
+        
         return_array, keys, min_dists, chunkIDs = rag.run_query(emb)
         #print(f"Query: '{question}' -> Returned keys: {keys}")
 
@@ -122,7 +150,8 @@ def run_eval(
         no_response = True
 
         if return_array != "No relevant information found.":
-            for idx, (key, dist) in enumerate(return_array):
+
+            for idx, (key, dist) in enumerate(return_array[:3]):
                 if answer in key:
                     matched_key = key
                     matched_dist = dist
@@ -134,6 +163,7 @@ def run_eval(
                 # print(f"✔ Match found: '{key}' (dist={dist:.4f})")
                 else:                
                     if (idx ==0 or idx ==1) and dist < 0.35: # if it is top 1 or 2 and incorrect then the weight is too large
+                        pass
                         #print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
                         rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)   
 
@@ -143,19 +173,20 @@ def run_eval(
         else:
             #print("Faliure of RAG sys query: ", question, " ra: ", return_array, " answer: ", answer)
             #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
+            
             rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
             ranks.append(None)
         rag.wC.adjust_weights(chunkIDs)  # Adjust weights after each training
         print("Time taken for query: ", datetime.now() - now)
         
-
+    vec.save_vectorDB()# save db once at the end
     metrics = compute_metrics(ranks, alpha=alpha, beta=beta, eps=eps, increase_target_weight_amount=increase_target_weight_amount,
                                 increase_weight_if_correct=increase_weight_if_correct,
                                 decrease_weight_if_incorrect=decrease_weight_if_incorrect)
 
     return metrics
 
-def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1):
+def run_full_eval(num_trials_array, alpha=1, beta=0.2, eps=1e-6, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1):
     metrics_array = []
     for k,num_trials in enumerate(num_trials_array):
         α = alpha[k] if isinstance(alpha, list) else alpha
@@ -182,21 +213,22 @@ def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_targe
 
 if __name__ == "__main__":
     print("Running EVAL")
-    alpha_values = [1.0, 0.8, 0.6, 0.4, 0.2]
-    beta_values  = [1.0, 0.8, 0.6, 0.4, 0.2]
+    # alpha_values = [1.0, 0.975, 0.95]
+    # beta_values  = [0.22,	0.21,	0.20,	0.19,	0.18]
 
-    # Number of trials per combination
-    num_trials_array = [120] * (len(alpha_values) * len(beta_values))
+    # # Number of trials per combination
+    # num_trials_array = [120] * (len(alpha_values) * len(beta_values))
 
-    # Create full alpha-beta grid
-    alphas = [a for a in alpha_values for _ in beta_values]
-    betas  = [b for _ in alpha_values for b in beta_values]
+    # # Create full alpha-beta grid
+    # alphas = [a for a in alpha_values for _ in beta_values]
+    # betas  = [b for _ in alpha_values for b in beta_values]
 
     # Run evaluation
     metrics_array = run_full_eval(
-        num_trials_array=num_trials_array,
-        alpha=alphas,
-        beta=betas
+        num_trials_array=[120],
+        # increase_target_weight_amount=5,
+        # increase_weight_if_correct=3,
+        # decrease_weight_if_incorrect=-1
     )
 
     print("Finished")
