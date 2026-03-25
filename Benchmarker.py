@@ -1,6 +1,7 @@
 from nltk.tokenize import sent_tokenize
 import nltk
 from config import openai_key
+import json
 
 import random
 import numpy as np
@@ -10,8 +11,9 @@ import os
 from datasets import load_dataset
 os.environ["PYTHONHASHSEED"] = "0"
 
-random.seed(42)
-np.random.seed(42)
+RANDOM_SEED = 42
+random.seed(RANDOM_SEED)
+np.random.seed(RANDOM_SEED)
 
 nltk.download('punkt')
 
@@ -63,6 +65,7 @@ def run_eval(
     increase_target_weight_amount=5,
     increase_weight_if_correct=3,
     decrease_weight_if_incorrect=-1,
+    running_native_baseline=False
 ):
     from WeightedRagSystem.Vectorizer import vectorizer
     from WeightedRagSystem.ragSystem import ragSystem
@@ -100,12 +103,12 @@ def run_eval(
                     increase_target_weight_amount=increase_target_weight_amount,
                     increase_weight_if_correct=increase_weight_if_correct,
                     decrease_weight_if_incorrect=decrease_weight_if_incorrect) # re init  rag sys
-    
+
     rag.wC.vector_db_reset() # There is no other info stored in vectorDB so this resets all of it, so exact equivalent of making new one 
 
-
     ranks = []
-    rag.wC.adjust_weights(all=True) 
+    if not running_native_baseline:
+        rag.wC.adjust_weights(all=True) 
     for i, questions_answer in enumerate(questions_answers[:num_trials]):
         print("Question number:", i)
 
@@ -145,7 +148,8 @@ def run_eval(
             #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
             rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
             ranks.append(None)
-        rag.wC.adjust_weights(chunkID)  # Adjust weights after each training
+        if not running_native_baseline:
+            rag.wC.adjust_weights(chunkIDs)  # Adjust weights after each training
         print("Time taken for query: ", datetime.now() - now)
         
 
@@ -155,7 +159,7 @@ def run_eval(
 
     return metrics
 
-def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1):
+def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1, running_native_baseline=False):
     metrics_array = []
     for k,num_trials in enumerate(num_trials_array):
         α = alpha[k] if isinstance(alpha, list) else alpha
@@ -175,7 +179,8 @@ def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_targe
         metrics = run_eval(num_trials, alpha=α, beta=β, eps=ε,
                                  increase_target_weight_amount=inc_tgt,
                                  increase_weight_if_correct=inc_corr,
-                                 decrease_weight_if_incorrect=dec_incorr)
+                                 decrease_weight_if_incorrect=dec_incorr,
+                                 running_native_baseline=running_native_baseline)
         print(f"Metrics for run {k+1}: {metrics}")
         metrics_array.append(metrics)
     return metrics_array
@@ -184,5 +189,16 @@ if __name__ == "__main__":
     print("Running EVAL")
     metrics_array = run_full_eval(num_trials_array = [30])
     print("Finished")
-    
     print("Metrics: ", metrics_array)
+    metrics_array_native_baseline = run_full_eval(num_trials_array = [30], alpha=1, beta=0, eps=0, increase_target_weight_amount=0, increase_weight_if_correct=0, decrease_weight_if_incorrect=0, running_native_baseline=True)
+    print("Finished Baseline")
+    print("Metrics Baseline: ", metrics_array_native_baseline)
+
+    results_dir = "results.json"
+    time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    with open(results_dir, "w") as f:
+        json.dump({
+            "timestamp": time_stamp,
+            "metrics_array": metrics_array,
+            "metrics_array_native_baseline": metrics_array_native_baseline
+        }, f, indent=4)

@@ -1,0 +1,31 @@
+{
+    "timestamp": "20260325_103946",
+    "metrics_array": [
+        {
+            "Number": 30,
+            "Alpha": 1,
+            "Beta": 0.25,
+            "Epsilon": 1e-06,
+            "Increase Target Weight Amount": 5,
+            "Increase Weight If Correct": 3,
+            "Decrease Weight If Incorrect": -1,
+            "Hit@1": 0.5333333333333333,
+            "Hit@3": 0.8333333333333334,
+            "MRR": 0.6911111111111111
+        }
+    ],
+    "metrics_array_native_baseline": [
+        {
+            "Number": 30,
+            "Alpha": 1,
+            "Beta": 0,
+            "Epsilon": 0,
+            "Increase Target Weight Amount": 0,
+            "Increase Weight If Correct": 0,
+            "Decrease Weight If Incorrect": 0,
+            "Hit@1": 0.4,
+            "Hit@3": 0.6666666666666666,
+            "MRR": 0.5288888888888889
+        }
+    ]
+}

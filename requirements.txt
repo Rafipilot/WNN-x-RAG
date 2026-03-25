@@ -1,0 +1,7 @@
+numpy
+openai
+scikit-learn
+nltk
+datasets
+git+https://github.com/mi3law/ao_core
+git+https://github.com/aolabsai/ao_embeddings

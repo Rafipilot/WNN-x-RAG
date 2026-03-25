@@ -79,7 +79,8 @@ class weightController:
         return integer
     
     def create_input_to_agent(self, entry):
-        ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
+        uid = entry["uniqueID"]
+        ID = [int(bit) for bit in f"{uid:010b}"]
 
         number_of_retrievals = entry["numberOfRetrievals"]
         number_of_retrievals_binary = self.convert_int_to_binary(number_of_retrievals, num_retrievals=True)
@@ -169,7 +170,8 @@ class weightController:
     def increase_target_weight(self, answer):
         for entry in self.vectorizer.vectorDB:
             if answer in entry["input"]:
-                ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
+                uid = entry["uniqueID"]
+                ID = [int(bit) for bit in f"{uid:010b}"]
 
                 input_to_agent = self.create_input_to_agent(entry)
                 weight = entry["weight"]

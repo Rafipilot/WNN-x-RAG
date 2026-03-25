@@ -58,7 +58,8 @@ class activeThreshold:
         
         DB_embedding_binary = self.em.embeddingToBinary(entry["embedding"])
         userInputEmbeddingBinary = self.em.embeddingToBinary(userInputEmbedding)
-        ID =  [int(bit) for bit in f"{entry["uniqueID"]:010b}"]
+        uid = entry["uniqueID"]
+        ID = [int(bit) for bit in f"{uid:010b}"]
 
         input_to_agent = DB_embedding_binary+userInputEmbeddingBinary+ID
         output = self.Agent.next_state(input_to_agent)
