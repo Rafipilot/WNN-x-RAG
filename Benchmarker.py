@@ -65,11 +65,13 @@ def run_eval(
     increase_target_weight_amount=5,
     increase_weight_if_correct=3,
     decrease_weight_if_incorrect=-1,
-    running_native_baseline=False
+    running_native_baseline=False,
+    seed=42,
+    num_examples=500
 ):
     from WeightedRagSystem.Vectorizer import vectorizer
     from WeightedRagSystem.ragSystem import ragSystem
-    
+
     import random
     import numpy as np
     from datetime import datetime
@@ -78,15 +80,15 @@ def run_eval(
     from datasets import load_dataset
     os.environ["PYTHONHASHSEED"] = "0"
 
-    random.seed(42)
-    np.random.seed(42)
+    random.seed(seed)
+    np.random.seed(seed)
     vec = vectorizer(openai_api_key=openai_key, vectorDBName="VectorDB.json")
     questions_answers =[]
     dataset = load_dataset("squad", split="validation")
 
     previous_ctx=None
     chunkID=0
-    for ex in dataset.select(range(200)):
+    for ex in dataset.select(range(num_examples)):
         q, a, ctx = ex["question"], ex["answers"]["text"][0], ex["context"]
         questions_answers.append([q, a])
         chunks = sentence_chunker(ctx)
@@ -135,18 +137,20 @@ def run_eval(
                         matched_index = idx
                         ranks.append(idx)
                 # print(f"✔ Match found: '{key}' (dist={dist:.4f})")
-                else:                
+                else:
                     if (idx ==0 or idx ==1) and dist < 0.35: # if it is top 1 or 2 and incorrect then the weight is too large
                         #print(f"Training: label=neg, no_response=False, key={key}, dist={dist}")
-                        rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)   
+                        if not running_native_baseline:
+                            rag.wC.train_agent("neg", False, key, dist, idx, rag.ActThresh)
 
         if matched_key and matched_dist:
             #print(f"Training: label=pos, no_response=False, key={matched_key}, dist={matched_dist}")
-            rag.wC.train_agent("pos", False, matched_key, matched_dist, matched_index, rag.ActThresh)
+            if not running_native_baseline:
+                rag.wC.train_agent("pos", False, matched_key, matched_dist, matched_index, rag.ActThresh)
         else:
             #print("Faliure of RAG sys query: ", question, " ra: ", return_array, " answer: ", answer)
-            #rag.wC.train_agent("neg", True, matched_key, matched_dist, matched_index, rag.ActThresh)
-            rag.wC.increase_target_weight(answer) # Increase the weight of the expected retrieval in the vector DB
+            if not running_native_baseline:
+                rag.wC.increase_target_weight(answer)
             ranks.append(None)
         if not running_native_baseline:
             rag.wC.adjust_weights(chunkIDs)  # Adjust weights after each training
@@ -159,7 +163,7 @@ def run_eval(
 
     return metrics
 
-def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1, running_native_baseline=False):
+def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_target_weight_amount=5, increase_weight_if_correct=3, decrease_weight_if_incorrect=-1, running_native_baseline=False, seed=42, num_examples=500):
     metrics_array = []
     for k,num_trials in enumerate(num_trials_array):
         α = alpha[k] if isinstance(alpha, list) else alpha
@@ -175,30 +179,65 @@ def run_full_eval(num_trials_array, alpha=1, beta=0.25, eps=1e-6, increase_targe
                       if isinstance(decrease_weight_if_incorrect, list)
                       else decrease_weight_if_incorrect)
 
-        print(f"\n=== Run {k+1}: α={α}, β={β}, ε={ε}, trials={num_trials} ===")
+        print(f"\n=== Run {k+1}: alpha={α}, beta={β}, eps={ε}, trials={num_trials} ===")
         metrics = run_eval(num_trials, alpha=α, beta=β, eps=ε,
                                  increase_target_weight_amount=inc_tgt,
                                  increase_weight_if_correct=inc_corr,
                                  decrease_weight_if_incorrect=dec_incorr,
-                                 running_native_baseline=running_native_baseline)
+                                 running_native_baseline=running_native_baseline,
+                                 seed=seed, num_examples=num_examples)
         print(f"Metrics for run {k+1}: {metrics}")
         metrics_array.append(metrics)
     return metrics_array
 
 if __name__ == "__main__":
-    print("Running EVAL")
-    metrics_array = run_full_eval(num_trials_array = [30])
-    print("Finished")
-    print("Metrics: ", metrics_array)
-    metrics_array_native_baseline = run_full_eval(num_trials_array = [30], alpha=1, beta=0, eps=0, increase_target_weight_amount=0, increase_weight_if_correct=0, decrease_weight_if_incorrect=0, running_native_baseline=True)
-    print("Finished Baseline")
-    print("Metrics Baseline: ", metrics_array_native_baseline)
+    trial_counts = [120, 200, 480]
+    seeds = [42, 123]
 
-    results_dir = "results.json"
+    all_results = {}
+    for seed in seeds:
+        print(f"\n========== SEED {seed} ==========")
+
+        print(f"Running DWRAG (beta=0.10, seed={seed})")
+        metrics_dwrag = run_full_eval(
+            num_trials_array=trial_counts,
+            alpha=1, beta=0.10, eps=1e-6,
+            increase_target_weight_amount=2,
+            increase_weight_if_correct=1,
+            decrease_weight_if_incorrect=-1,
+            seed=seed, num_examples=500
+        )
+
+        print(f"Running Native Baseline (seed={seed})")
+        metrics_native = run_full_eval(
+            num_trials_array=trial_counts,
+            alpha=1, beta=0, eps=1e-6,
+            running_native_baseline=True,
+            seed=seed, num_examples=500
+        )
+
+        all_results[f"seed_{seed}"] = {
+            "dwrag": metrics_dwrag,
+            "native": metrics_native
+        }
+
     time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    with open(results_dir, "w") as f:
+    with open("results.json", "w") as f:
         json.dump({
             "timestamp": time_stamp,
-            "metrics_array": metrics_array,
-            "metrics_array_native_baseline": metrics_array_native_baseline
+            "results": all_results
         }, f, indent=4)
+
+    print("\n=== SUMMARY ===")
+    for seed in seeds:
+        res = all_results[f"seed_{seed}"]
+        print(f"\n--- Seed {seed} ---")
+        print(f"  {'Trials':<10} {'':7} Hit@1   Hit@3   MRR")
+        print("  " + "-" * 55)
+        for i, t in enumerate(trial_counts):
+            d = res["dwrag"][i]
+            n = res["native"][i]
+            print(f"  {t:<10} DWRAG   {d['Hit@1']:.3f}   {d['Hit@3']:.3f}   {d['MRR']:.3f}")
+            print(f"  {'':10} Native  {n['Hit@1']:.3f}   {n['Hit@3']:.3f}   {n['MRR']:.3f}")
+            print(f"  {'':10} Delta  {d['Hit@1']-n['Hit@1']:+.3f}   {d['Hit@3']-n['Hit@3']:+.3f}   {d['MRR']-n['MRR']:+.3f}")
+            print()

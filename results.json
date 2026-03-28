@@ -1,31 +1,103 @@
 {
-    "timestamp": "20260325_103946",
-    "metrics_array": [
+    "timestamp": "20260327_212723",
+    "dwrag": [
         {
-            "Number": 30,
+            "Number": 60,
             "Alpha": 1,
-            "Beta": 0.25,
+            "Beta": 0.1,
+            "Epsilon": 1e-06,
+            "Increase Target Weight Amount": 2,
+            "Increase Weight If Correct": 1,
+            "Decrease Weight If Incorrect": -1,
+            "Hit@1": 0.5833333333333334,
+            "Hit@3": 0.8166666666666667,
+            "MRR": 0.7155555555555555
+        },
+        {
+            "Number": 120,
+            "Alpha": 1,
+            "Beta": 0.1,
+            "Epsilon": 1e-06,
+            "Increase Target Weight Amount": 2,
+            "Increase Weight If Correct": 1,
+            "Decrease Weight If Incorrect": -1,
+            "Hit@1": 0.7416666666666667,
+            "Hit@3": 0.9083333333333333,
+            "MRR": 0.8313888888888888
+        },
+        {
+            "Number": 200,
+            "Alpha": 1,
+            "Beta": 0.1,
+            "Epsilon": 1e-06,
+            "Increase Target Weight Amount": 2,
+            "Increase Weight If Correct": 1,
+            "Decrease Weight If Incorrect": -1,
+            "Hit@1": 0.76,
+            "Hit@3": 0.92,
+            "MRR": 0.8435833333333334
+        },
+        {
+            "Number": 200,
+            "Alpha": 1,
+            "Beta": 0.1,
+            "Epsilon": 1e-06,
+            "Increase Target Weight Amount": 2,
+            "Increase Weight If Correct": 1,
+            "Decrease Weight If Incorrect": -1,
+            "Hit@1": 0.76,
+            "Hit@3": 0.92,
+            "MRR": 0.8435833333333334
+        }
+    ],
+    "native": [
+        {
+            "Number": 60,
+            "Alpha": 1,
+            "Beta": 0,
             "Epsilon": 1e-06,
             "Increase Target Weight Amount": 5,
             "Increase Weight If Correct": 3,
             "Decrease Weight If Incorrect": -1,
-            "Hit@1": 0.5333333333333333,
-            "Hit@3": 0.8333333333333334,
-            "MRR": 0.6911111111111111
-        }
-    ],
-    "metrics_array_native_baseline": [
+            "Hit@1": 0.5,
+            "Hit@3": 0.7666666666666667,
+            "MRR": 0.6302777777777777
+        },
         {
-            "Number": 30,
+            "Number": 120,
             "Alpha": 1,
             "Beta": 0,
-            "Epsilon": 0,
-            "Increase Target Weight Amount": 0,
-            "Increase Weight If Correct": 0,
-            "Decrease Weight If Incorrect": 0,
-            "Hit@1": 0.4,
-            "Hit@3": 0.6666666666666666,
-            "MRR": 0.5288888888888889
+            "Epsilon": 1e-06,
+            "Increase Target Weight Amount": 5,
+            "Increase Weight If Correct": 3,
+            "Decrease Weight If Incorrect": -1,
+            "Hit@1": 0.6833333333333333,
+            "Hit@3": 0.875,
+            "MRR": 0.7797222222222222
+        },
+        {
+            "Number": 200,
+            "Alpha": 1,
+            "Beta": 0,
+            "Epsilon": 1e-06,
+            "Increase Target Weight Amount": 5,
+            "Increase Weight If Correct": 3,
+            "Decrease Weight If Incorrect": -1,
+            "Hit@1": 0.74,
+            "Hit@3": 0.895,
+            "MRR": 0.8184166666666666
+        },
+        {
+            "Number": 200,
+            "Alpha": 1,
+            "Beta": 0,
+            "Epsilon": 1e-06,
+            "Increase Target Weight Amount": 5,
+            "Increase Weight If Correct": 3,
+            "Decrease Weight If Incorrect": -1,
+            "Hit@1": 0.74,
+            "Hit@3": 0.895,
+            "MRR": 0.8184166666666666
         }
     ]
 }
