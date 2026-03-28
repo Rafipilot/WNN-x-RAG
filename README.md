@@ -1,3 +1,4 @@
 # Rag + WNNs
 
-Using WNNs to apply weights to items in vector DBs allowing a weighted cosine similarity score to be calculated allowing for more relevent and personlized retreievals.
+This repo implementes dynamically weighted retrieval augmented generation (DWRAG). The core idea is that items within a vector database that is used for retrieval augmented generation should have an weight, which represents how "important" that chunk is and therefore influences its retrieval probability.
+
